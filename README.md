@@ -7,7 +7,7 @@ Phần mềm giúp:
 •	Kiểm soát ngân sách và chi phí quảng cáo 
 •	Thống kê và báo cáo hiệu quả quảng cáo 
 •	Tiết kiệm thời gian và nâng cao hiệu suất làm việc 
-________________________________________
+_______________________________________
 👥 Thành viên nhóm
 •	Tạ Quang Hà – Trưởng nhóm (Leader) 
 •	Nguyễn Hữu Tú – Thành viên 
