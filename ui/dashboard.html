@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tổng quan – ADS Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ──────────────────── SIDEBAR ─────────────────────────── -->
+<div class="app">
+<aside class="sidebar">
+  <div class="sb-logo"><span class="sb-logo-icon">📊</span><span class="sb-logo-text">ADS Manager</span></div>
+  <nav class="sb-nav">
+    <div class="sb-section">Menu chính</div>
+    <button class="sb-item active" data-page="dashboard.html" onclick="goTo('dashboard')"><span class="sb-icon">🏠</span>Tổng quan</button>
+    <button class="sb-item" data-page="campaigns.html" onclick="goTo('campaigns')"><span class="sb-icon">🎯</span>Chiến dịch QC</button>
+    <button class="sb-item" data-page="customers.html" onclick="goTo('customers')"><span class="sb-icon">👥</span>Khách hàng</button>
+    <button class="sb-item" data-page="reports.html"   onclick="goTo('reports')"><span class="sb-icon">📈</span>Báo cáo</button>
+    <div class="sb-section" style="margin-top:10px;">Hệ thống</div>
+    <button class="sb-item"><span class="sb-icon">⚙️</span>Cài đặt</button>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-user">
+      <div class="sb-avatar">A</div>
+      <div><div class="sb-uname">Admin</div><div class="sb-role">Quản trị viên</div></div>
+      <button class="sb-logout" onclick="goTo('login')" title="Đăng xuất">⏏</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ──────────────────── MAIN ────────────────────────────── -->
+<div class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1>Tổng quan hệ thống</h1>
+      <p>Xem nhanh hiệu quả toàn bộ chiến dịch quảng cáo</p>
+    </div>
+    <div class="topbar-right">
+      <button class="notif-btn">🔔</button>
+      <span class="topbar-date" id="topbar-date"></span>
+    </div>
+  </header>
+
+  <div class="page">
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi" style="--c:#2563EB">
+        <div class="kpi-top"><span class="kpi-icon">🎯</span><span class="kpi-badge up">+3 tuần</span></div>
+        <div class="kpi-val">12</div><div class="kpi-lbl">Chiến dịch đang chạy</div>
+      </div>
+      <div class="kpi" style="--c:#10B981">
+        <div class="kpi-top"><span class="kpi-icon">💰</span><span class="kpi-badge up">+12%</span></div>
+        <div class="kpi-val">85.4Tr đ</div><div class="kpi-lbl">Tổng chi phí tháng</div>
+      </div>
+      <div class="kpi" style="--c:#8B5CF6">
+        <div class="kpi-top"><span class="kpi-icon">👥</span><span class="kpi-badge up">+2</span></div>
+        <div class="kpi-val">28</div><div class="kpi-lbl">Tổng khách hàng</div>
+      </div>
+      <div class="kpi" style="--c:#F59E0B">
+        <div class="kpi-top"><span class="kpi-icon">📈</span><span class="kpi-badge up">+0.4%</span></div>
+        <div class="kpi-val">CTR 3.2%</div><div class="kpi-lbl">Hiệu quả trung bình</div>
+      </div>
+    </div>
+
+    <!-- ROW: Bảng + Sidebar thống kê -->
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;">
+
+      <!-- Top 5 chiến dịch -->
+      <div class="card">
+        <div class="card-hd">
+          <span class="card-title">🏆 Top 5 chiến dịch hiệu quả nhất</span>
+          <button class="btn btn-ghost btn-sm" onclick="goTo('campaigns')">Xem tất cả →</button>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>Tên chiến dịch</th><th>Nền tảng</th><th>Leads</th><th>CTR</th><th>Trạng thái</th></tr></thead>
+          <tbody>
+            <tr><td><strong>QC Khai trương 2024</strong></td><td><span class="plat">Facebook Ads</span></td><td>370</td><td style="color:#10B981;font-weight:700;">4.84%</td><td><span class="badge b-run">● Đang chạy</span></td></tr>
+            <tr><td><strong>Google Search – SaaS</strong></td><td><span class="plat">Google Ads</span></td><td>240</td><td style="color:#10B981;font-weight:700;">4.29%</td><td><span class="badge b-run">● Đang chạy</span></td></tr>
+            <tr><td><strong>TikTok Brand Boost</strong></td><td><span class="plat">TikTok Ads</span></td><td>196</td><td style="color:#F59E0B;font-weight:700;">1.82%</td><td><span class="badge b-pau">⏸ Tạm dừng</span></td></tr>
+            <tr><td><strong>FB Lead Gen – Thời trang</strong></td><td><span class="plat">Facebook Ads</span></td><td>144</td><td style="color:#10B981;font-weight:700;">3.60%</td><td><span class="badge b-done">✓ Hoàn thành</span></td></tr>
+            <tr><td><strong>Gmail Sponsored Ads</strong></td><td><span class="plat">Google Ads</span></td><td>82</td><td style="color:#10B981;font-weight:700;">3.28%</td><td><span class="badge b-run">● Đang chạy</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Cột phải -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <!-- Phân bổ ngân sách -->
+        <div class="card" style="padding:18px 20px;">
+          <div class="card-title" style="margin-bottom:14px;">📊 Phân bổ ngân sách</div>
+          <div class="dist-row"><div class="dist-name">Facebook Ads</div><div class="dist-trk"><div class="dist-fill" style="background:#1877F2;" data-w="60%"></div></div><div class="dist-pct">60%</div></div>
+          <div class="dist-row"><div class="dist-name">Google Ads</div><div class="dist-trk"><div class="dist-fill" style="background:#DB4437;" data-w="30%"></div></div><div class="dist-pct">30%</div></div>
+          <div class="dist-row"><div class="dist-name">TikTok Ads</div><div class="dist-trk"><div class="dist-fill" style="background:#212121;" data-w="10%"></div></div><div class="dist-pct">10%</div></div>
+        </div>
+
+        <!-- Hoạt động gần đây -->
+        <div class="card" style="padding:18px 20px;">
+          <div class="card-title" style="margin-bottom:14px;">⚡ Hoạt động gần đây</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;gap:10px;"><span style="font-size:18px;">🎯</span><div><div style="font-size:12px;font-weight:700;">TikTok Brand Boost tạm dừng</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">2 giờ trước</div></div></div>
+            <div style="display:flex;gap:10px;"><span style="font-size:18px;">💰</span><div><div style="font-size:12px;font-weight:700;">ABC nạp thêm 5.000.000 đ</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">5 giờ trước</div></div></div>
+            <div style="display:flex;gap:10px;"><span style="font-size:18px;">👥</span><div><div style="font-size:12px;font-weight:700;">Thêm KH: Spa Hà Nội Beauty</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">Hôm qua</div></div></div>
+            <div style="display:flex;gap:10px;"><span style="font-size:18px;">📊</span><div><div style="font-size:12px;font-weight:700;">Báo cáo T3/2024 đã xuất</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">2 ngày trước</div></div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- .page -->
+</div><!-- .main -->
+</div><!-- .app -->
+
+<div id="toast-area"></div>
+<script src="main.js"></script>
+</body>
+</html>

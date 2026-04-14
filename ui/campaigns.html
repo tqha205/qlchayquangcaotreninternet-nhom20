@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Chiến dịch – ADS Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-logo"><span class="sb-logo-icon">📊</span><span class="sb-logo-text">ADS Manager</span></div>
+  <nav class="sb-nav">
+    <div class="sb-section">Menu chính</div>
+    <button class="sb-item" onclick="goTo('dashboard')"><span class="sb-icon">🏠</span>Tổng quan</button>
+    <button class="sb-item active" onclick="goTo('campaigns')"><span class="sb-icon">🎯</span>Chiến dịch QC</button>
+    <button class="sb-item" onclick="goTo('customers')"><span class="sb-icon">👥</span>Khách hàng</button>
+    <button class="sb-item" onclick="goTo('reports')"><span class="sb-icon">📈</span>Báo cáo</button>
+    <div class="sb-section" style="margin-top:10px;">Hệ thống</div>
+    <button class="sb-item"><span class="sb-icon">⚙️</span>Cài đặt</button>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-user">
+      <div class="sb-avatar">A</div>
+      <div><div class="sb-uname">Admin</div><div class="sb-role">Quản trị viên</div></div>
+      <button class="sb-logout" onclick="goTo('login')">⏏</button>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1>Quản lý chiến dịch quảng cáo</h1>
+      <p>Theo dõi, tạo và quản lý toàn bộ chiến dịch của khách hàng</p>
+    </div>
+    <div class="topbar-right">
+      <button class="notif-btn">🔔</button>
+      <span class="topbar-date" id="topbar-date"></span>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="card">
+
+      <!-- TOOLBAR -->
+      <div class="toolbar">
+        <input class="search-box" id="srch" placeholder="Tìm kiếm tên chiến dịch..." oninput="filterTable('srch','cam-tbl')">
+        <select class="filter-sel" id="f-plat" onchange="filterRows()">
+          <option value="">Tất cả nền tảng</option>
+          <option>Facebook Ads</option><option>Google Ads</option><option>TikTok Ads</option>
+        </select>
+        <select class="filter-sel" id="f-stat" onchange="filterRows()">
+          <option value="">Tất cả trạng thái</option>
+          <option>Đang chạy</option><option>Tạm dừng</option><option>Hoàn thành</option><option>Lên kế hoạch</option>
+        </select>
+        <button class="btn btn-success" style="margin-left:auto;" onclick="openModal('m-add')">＋ Thêm chiến dịch</button>
+      </div>
+
+      <!-- TABLE -->
+      <table class="tbl" id="cam-tbl">
+        <thead>
+          <tr><th>#</th><th>Tên chiến dịch</th><th>Khách hàng</th><th>Nền tảng</th><th>Ngân sách</th><th>Tiến độ</th><th>Trạng thái</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody id="cam-body"></tbody>
+      </table>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: THÊM -->
+<div class="overlay" id="m-add">
+  <div class="modal">
+    <div class="modal-hd"><span class="modal-ttl">➕ Thêm chiến dịch mới</span><button class="modal-cls" onclick="closeModal('m-add')">✕</button></div>
+    <div class="modal-bd">
+      <div class="f2">
+        <div class="fg"><label class="flbl">Tên chiến dịch *</label><input id="a-name" class="fc" placeholder="VD: QC Khai trương 2024"></div>
+        <div class="fg"><label class="flbl">Khách hàng *</label>
+          <select id="a-cust" class="fc">
+            <option>Công ty Thời trang ABC</option><option>Cty TNHH SaaS Việt</option>
+            <option>Shop Điện tử XYZ</option><option>Nhà hàng Phố Xưa</option><option>Spa Hà Nội Beauty</option>
+          </select>
+        </div>
+      </div>
+      <div class="f2">
+        <div class="fg"><label class="flbl">Nền tảng *</label>
+          <select id="a-plat" class="fc"><option>Facebook Ads</option><option>Google Ads</option><option>TikTok Ads</option><option>Youtube Ads</option></select>
+        </div>
+        <div class="fg"><label class="flbl">Trạng thái</label>
+          <select id="a-stat" class="fc"><option>Đang chạy</option><option>Lên kế hoạch</option><option>Tạm dừng</option></select>
+        </div>
+      </div>
+      <div class="f2">
+        <div class="fg"><label class="flbl">Ngân sách tổng (đ) *</label><input id="a-budget" class="fc" type="number" placeholder="20000000"></div>
+        <div class="fg"><label class="flbl">Đã chi tiêu (đ)</label><input id="a-spent" class="fc" type="number" placeholder="0" value="0"></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('m-add')">Hủy</button>
+      <button class="btn btn-success" onclick="addCam()">💾 Lưu chiến dịch</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SỬA -->
+<div class="overlay" id="m-edit">
+  <div class="modal">
+    <div class="modal-hd"><span class="modal-ttl">✏ Sửa chiến dịch</span><button class="modal-cls" onclick="closeModal('m-edit')">✕</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="e-id">
+      <div class="f2">
+        <div class="fg"><label class="flbl">Tên chiến dịch *</label><input id="e-name" class="fc"></div>
+        <div class="fg"><label class="flbl">Khách hàng</label><input id="e-cust" class="fc"></div>
+      </div>
+      <div class="f2">
+        <div class="fg"><label class="flbl">Nền tảng</label>
+          <select id="e-plat" class="fc"><option>Facebook Ads</option><option>Google Ads</option><option>TikTok Ads</option><option>Youtube Ads</option></select>
+        </div>
+        <div class="fg"><label class="flbl">Trạng thái</label>
+          <select id="e-stat" class="fc"><option>Đang chạy</option><option>Tạm dừng</option><option>Hoàn thành</option><option>Lên kế hoạch</option></select>
+        </div>
+      </div>
+      <div class="f2">
+        <div class="fg"><label class="flbl">Ngân sách (đ)</label><input id="e-budget" class="fc" type="number"></div>
+        <div class="fg"><label class="flbl">Đã chi tiêu (đ)</label><input id="e-spent" class="fc" type="number"></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('m-edit')">Hủy</button>
+      <button class="btn btn-warning" onclick="saveCam()">💾 Cập nhật</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-area"></div>
+<script src="main.js"></script>
+<script>
+// ── DATA ──────────────────────────────────────────────────────
+let cams = [
+  {id:1,name:'QC Khai trương 2024',       customer:'Công ty Thời trang ABC', platform:'Facebook Ads', budget:20000000, spent:18500000, status:'Đang chạy'},
+  {id:2,name:'Google Search – SaaS',       customer:'Cty TNHH SaaS Việt',    platform:'Google Ads',   budget:15000000, spent:12000000, status:'Đang chạy'},
+  {id:3,name:'TikTok Brand Boost',          customer:'Shop Điện tử XYZ',       platform:'TikTok Ads',   budget:10000000, spent: 9800000, status:'Tạm dừng'},
+  {id:4,name:'FB Lead Gen – Thời trang',   customer:'Công ty Thời trang ABC', platform:'Facebook Ads', budget: 8000000, spent: 7200000, status:'Hoàn thành'},
+  {id:5,name:'Gmail Sponsored Ads',         customer:'Spa Hà Nội Beauty',      platform:'Google Ads',   budget: 5000000, spent: 4100000, status:'Đang chạy'},
+  {id:6,name:'TikTok Spark Ads – Beauty',  customer:'Spa Hà Nội Beauty',      platform:'TikTok Ads',   budget: 6000000, spent: 1200000, status:'Lên kế hoạch'},
+];
+let nextId = 7;
+
+const fmtMoney=n=>n.toLocaleString('vi-VN')+" đ";
+const statusBadge={
+  'Đang chạy':'<span class="badge b-run">● Đang chạy</span>',
+  'Tạm dừng': '<span class="badge b-pau">⏸ Tạm dừng</span>',
+  'Hoàn thành':'<span class="badge b-done">✓ Hoàn thành</span>',
+  'Lên kế hoạch':'<span class="badge b-plan">📋 Kế hoạch</span>',
+};
+
+function renderCams(data){
+  const body = document.getElementById('cam-body');
+  if(!data.length){
+    body.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-ico">🎯</div><div class="empty-txt">Không có chiến dịch nào</div></div></td></tr>`;
+    return;
+  }
+  body.innerHTML = data.map(c=>{
+    const pct = c.budget ? Math.round(c.spent/c.budget*100) : 0;
+    const col  = pct>=90?'#EF4444':pct>=70?'#F59E0B':'#10B981';
+    return `<tr>
+      <td style="color:#94A3B8;font-size:11px;">#${c.id}</td>
+      <td><strong>${c.name}</strong></td>
+      <td>${c.customer}</td>
+      <td><span class="plat">${c.platform}</span></td>
+      <td>
+        <div style="font-size:13px;font-weight:700;">${fmtMoney(c.budget)}</div>
+        <div style="font-size:11px;color:#94A3B8;">Đã tiêu: ${fmtMoney(c.spent)}</div>
+      </td>
+      <td style="min-width:90px;">
+        <div style="font-size:11px;color:#64748B;margin-bottom:3px;">${pct}%</div>
+        <div class="prog-wrap"><div class="prog-fill" style="width:${pct}%;background:${col};"></div></div>
+      </td>
+      <td>${statusBadge[c.status]||c.status}</td>
+      <td>
+        <div style="display:flex;gap:5px;">
+          <button class="btn btn-warning btn-sm" onclick="openEdit(${c.id})">✏ Sửa</button>
+          <button class="btn btn-danger btn-sm"  onclick="delCam(${c.id},'${c.name}')">🗑 Xóa</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function getFiltered(){
+  const q = (document.getElementById('srch').value||'').toLowerCase();
+  const p = (document.getElementById('f-plat').value||'').toLowerCase();
+  const s = (document.getElementById('f-stat').value||'').toLowerCase();
+  return cams.filter(c=>
+    (!q || c.name.toLowerCase().includes(q) || c.customer.toLowerCase().includes(q)) &&
+    (!p || c.platform.toLowerCase()===p) &&
+    (!s || c.status.toLowerCase()===s)
+  );
+}
+
+function filterRows(){ renderCams(getFiltered()); }
+document.getElementById('srch').addEventListener('input', filterRows);
+
+function addCam(){
+  const name = document.getElementById('a-name').value.trim();
+  if(!name){ alert('Vui lòng nhập tên chiến dịch!'); return; }
+  cams.push({
+    id: nextId++,
+    name, 
+    customer: document.getElementById('a-cust').value,
+    platform: document.getElementById('a-plat').value,
+    budget: +document.getElementById('a-budget').value||0,
+    spent:  +document.getElementById('a-spent').value||0,
+    status: document.getElementById('a-stat').value,
+  });
+  closeModal('m-add');
+  renderCams(getFiltered());
+  toast('Đã thêm chiến dịch "'+name+'"!');
+  document.getElementById('a-name').value='';
+}
+
+function openEdit(id){
+  const c = cams.find(x=>x.id===id); if(!c) return;
+  document.getElementById('e-id').value=c.id;
+  document.getElementById('e-name').value=c.name;
+  document.getElementById('e-cust').value=c.customer;
+  document.getElementById('e-plat').value=c.platform;
+  document.getElementById('e-stat').value=c.status;
+  document.getElementById('e-budget').value=c.budget;
+  document.getElementById('e-spent').value=c.spent;
+  openModal('m-edit');
+}
+
+function saveCam(){
+  const id = +document.getElementById('e-id').value;
+  const c = cams.find(x=>x.id===id); if(!c) return;
+  c.name=document.getElementById('e-name').value;
+  c.customer=document.getElementById('e-cust').value;
+  c.platform=document.getElementById('e-plat').value;
+  c.status=document.getElementById('e-stat').value;
+  c.budget=+document.getElementById('e-budget').value||0;
+  c.spent=+document.getElementById('e-spent').value||0;
+  closeModal('m-edit');
+  renderCams(getFiltered());
+  toast('Đã cập nhật chiến dịch!');
+}
+
+function delCam(id,name){
+  if(!confirm('Xóa "'+name+'"?\nThao tác không thể hoàn tác!')) return;
+  cams=cams.filter(c=>c.id!==id);
+  renderCams(getFiltered());
+  toast('Đã xóa "'+name+'"');
+}
+
+// Init
+renderCams(cams);
+</script>
+</body>
+</html>
