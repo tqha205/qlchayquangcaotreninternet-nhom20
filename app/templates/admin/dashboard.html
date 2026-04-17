@@ -1,0 +1,155 @@
+{% extends "layouts/admin_base.html" %}
+
+{% block title %}Tổng quan - ADS Manager{% endblock %}
+{% block page_title %}Tổng quan chiến dịch{% endblock %}
+{% block page_subtitle %}Theo dõi hiệu quả quảng cáo và chi phí thời gian thực.{% endblock %}
+
+{% block content %}
+<!-- KPI GRID -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Stat Card 1 -->
+    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex justify-between items-start mb-4">
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Chiến dịch active</p>
+            <div class="bg-indigo-50 p-2 rounded-lg text-primary">
+                <i data-lucide="target" class="w-4 h-4"></i>
+            </div>
+        </div>
+        <div class="text-3xl font-extrabold text-slate-900 mb-2" id="stats-cams">-</div>
+        <div class="flex items-center gap-1 text-emerald-500 text-xs font-bold">
+            <i data-lucide="trending-up" class="w-3 h-3"></i>
+            <span>+12% so với tháng trước</span>
+        </div>
+    </div>
+
+    <!-- Stat Card 2 -->
+    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex justify-between items-start mb-4">
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Tổng ngân sách</p>
+            <div class="bg-emerald-50 p-2 rounded-lg text-emerald-600">
+                <i data-lucide="wallet" class="w-4 h-4"></i>
+            </div>
+        </div>
+        <div class="text-3xl font-extrabold text-slate-900 mb-2" id="stats-budget">-</div>
+        <div class="flex items-center gap-1 text-emerald-500 text-xs font-bold">
+            <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
+            <span>Tăng trưởng ổn định</span>
+        </div>
+    </div>
+
+    <!-- Stat Card 3 -->
+    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex justify-between items-start mb-4">
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Tổng khách hàng</p>
+            <div class="bg-amber-50 p-2 rounded-lg text-amber-600">
+                <i data-lucide="users" class="w-4 h-4"></i>
+            </div>
+        </div>
+        <div class="text-3xl font-extrabold text-slate-900 mb-2" id="stats-cust">-</div>
+        <div class="flex items-center gap-1 text-emerald-500 text-xs font-bold">
+            <i data-lucide="shield-check" class="w-3 h-3"></i>
+            <span>Tỷ lệ giữ chân 98%</span>
+        </div>
+    </div>
+
+    <!-- Stat Card 4 -->
+    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex justify-between items-start mb-4">
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Chi phí đã tiêu</p>
+            <div class="bg-indigo-50 p-2 rounded-lg text-primary">
+                <i data-lucide="activity" class="w-4 h-4"></i>
+            </div>
+        </div>
+        <div class="text-3xl font-extrabold text-slate-900 mb-2" id="stats-spent">-</div>
+        <div class="flex items-center gap-1 text-slate-400 text-xs font-bold">
+            <i data-lucide="target" class="w-3 h-3 text-primary"></i>
+            <span>ROI mục tiêu: 3.5x</span>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- CHART CARD -->
+    <div class="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-8 py-6 border-b border-slate-50 flex justify-between items-center">
+            <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="bar-chart" class="w-5 h-5 text-primary"></i>
+                Chi phí hàng tuần (Triệu VNĐ)
+            </h3>
+            <div class="flex gap-4 text-[10px] font-black uppercase tracking-widest">
+                <span class="flex items-center gap-1.5 text-primary">
+                    <span class="w-2 h-2 rounded-full bg-primary/20 border border-primary"></span> Thực chi
+                </span>
+                <span class="flex items-center gap-1.5 text-slate-400">
+                    <span class="w-2 h-2 rounded-full bg-slate-100 border border-slate-200"></span> Ngân sách
+                </span>
+            </div>
+        </div>
+        <div class="p-8">
+            <div class="flex items-end justify-between h-48 gap-4 px-4">
+                {% for day, val in [('T2', 65), ('T3', 85), ('T4', 45), ('T5', 95), ('T6', 70), ('T7', 55), ('CN', 30)] %}
+                <div class="flex-1 flex flex-col items-center gap-4 group">
+                    <div class="w-full max-w-[32px] bg-indigo-50 rounded-t-lg relative flex items-end h-full">
+                        <div class="w-full bg-primary rounded-t-lg transition-all duration-1000 group-hover:bg-indigo-400" style="height: {{ val }}%;"></div>
+                        <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            {{ val }}M
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-400">{{ day }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- RECENT ACTIVITY -->
+    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+        <div class="px-8 py-6 border-b border-slate-50">
+            <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="clock" class="w-5 h-5 text-indigo-400"></i>
+                Hoạt động gần đây
+            </h3>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+            <div class="space-y-0">
+                {% for icon, color, title, time in [
+                    ('zap', 'emerald', 'Chiến dịch "Khai trương" đã bắt đầu', '2 giờ trước'),
+                    ('wallet', 'amber', 'Ngân sách tháng 5 đã được nạp', '5 giờ trước'),
+                    ('alert-circle', 'red', 'TikTok Ads tạm dừng do ngân sách', '1 ngày trước'),
+                    ('user-plus', 'blue', 'Thêm khách hàng mới: Vinamilk', '2 ngày trước')
+                ] %}
+                <div class="px-8 py-5 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors flex gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-{{ color }}-50 flex items-center justify-center text-{{ color }}-600 flex-shrink-0">
+                        <i data-lucide="{{ icon }}" class="w-5 h-5"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <p class="text-sm font-bold text-slate-900 truncate">{{ title }}</p>
+                        <p class="text-xs text-slate-400 mt-1">{{ time }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="p-4 bg-slate-50/50 text-center">
+            <a href="#" class="text-xs font-bold text-primary hover:underline">Xem tất cả hoạt động</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStats() {
+    try {
+        const res = await fetch("{{ url_for('admin.get_stats') }}");
+        const data = await res.json();
+        document.getElementById('stats-cams').innerText = data.total_campaigns;
+        document.getElementById('stats-budget').innerText = (data.total_budget / 1000000).toFixed(1) + 'M';
+        document.getElementById('stats-cust').innerText = data.total_customers;
+        document.getElementById('stats-spent').innerText = (data.total_spent / 1000000).toFixed(1) + 'M';
+    } catch(err) { console.error(err); }
+}
+loadStats();
+</script>
+{% endblock %}
+

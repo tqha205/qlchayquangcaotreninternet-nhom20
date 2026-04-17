@@ -1,0 +1,98 @@
+{% extends "layouts/public_base.html" %}
+
+{% block content %}
+<section class="pt-32 pb-20 lg:pt-48 lg:pb-32 bg-slate-50 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <!-- Left Side: Info -->
+            <div class="space-y-10">
+                <div class="space-y-6">
+                    <h2 class="text-4xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.1]">
+                        Hãy để chúng tôi <br>
+                        <span class="text-primary">đồng hành cùng bạn</span>
+                    </h2>
+                    <p class="text-lg text-slate-500 leading-relaxed max-w-lg">
+                        Điền thông tin vào biểu mẫu bên cạnh, chuyên gia của chúng tôi sẽ phân tích thị trường và tư vấn chiến lược miễn phí cho doanh nghiệp của bạn.
+                    </p>
+                </div>
+                
+                <div class="space-y-6">
+                    <div class="flex items-center gap-6 p-6 bg-white rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow group">
+                        <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                            <i data-lucide="phone" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Hotline</p>
+                            <p class="text-xl font-extrabold text-slate-900">090.123.4567</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-6 p-6 bg-white rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow group">
+                        <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                            <i data-lucide="mail" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Email</p>
+                            <p class="text-xl font-extrabold text-slate-900">contact@adsagency.vn</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Form -->
+            <div class="bg-white p-8 lg:p-12 rounded-[2.5rem] shadow-2xl shadow-slate-200 border border-slate-100 relative">
+                <div class="absolute -top-10 -right-10 w-32 h-32 bg-indigo-50 rounded-full -z-10"></div>
+                
+                {% with messages = get_flashed_messages() %}
+                  {% if messages %}
+                    {% for message in messages %}
+                      <div class="bg-emerald-50 text-emerald-700 px-6 py-4 rounded-2xl font-bold text-sm mb-8 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                        <i data-lucide="check-circle" class="w-5 h-5"></i>
+                        {{ message }}
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+
+                <form action="{{ url_for('public.contact') }}" method="POST" class="space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-700 uppercase tracking-widest ml-1">Họ tên *</label>
+                            <input type="text" name="name" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-slate-900" placeholder="Nguyễn Văn A">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-700 uppercase tracking-widest ml-1">Số điện thoại *</label>
+                            <input type="text" name="phone" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-slate-900" placeholder="0901xxxxxx">
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-slate-700 uppercase tracking-widest ml-1">Email</label>
+                        <input type="email" name="email" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-slate-900" placeholder="email@example.com">
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-slate-700 uppercase tracking-widest ml-1">Dịch vụ quan tâm</label>
+                        <select name="service" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-slate-600 appearance-none bg-[url('https://cdn-icons-png.flaticon.com/512/25/25618.png')] bg-[length:12px] bg-[right_1.25rem_center] bg-no-repeat">
+                            <option>Google Ads</option>
+                            <option>Facebook Ads</option>
+                            <option>TikTok Ads</option>
+                            <option>Vận hành tổng thể</option>
+                        </select>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-slate-700 uppercase tracking-widest ml-1">Lời nhắn</label>
+                        <textarea name="message" rows="4" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-slate-900 resize-none" placeholder="Hãy mô tả nhu cầu của bạn..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-primary text-white py-5 rounded-2xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95 flex items-center justify-center gap-2">
+                        Gửi yêu cầu ngay <i data-lucide="send" class="w-5 h-5"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

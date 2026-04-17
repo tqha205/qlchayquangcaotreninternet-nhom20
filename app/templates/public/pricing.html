@@ -1,0 +1,102 @@
+{% extends "layouts/public_base.html" %}
+
+{% block content %}
+<section class="pt-32 pb-20 lg:pt-48 lg:pb-32 bg-slate-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-3xl mx-auto mb-20">
+            <h2 class="text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight mb-6">Lựa chọn giải pháp phù hợp</h2>
+            <p class="text-lg text-slate-500 leading-relaxed">Chúng tôi cung cấp các gói dịch vụ linh hoạt, tối ưu chi phí cho từng giai đoạn phát triển của doanh nghiệp.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+            <!-- Plan 1 -->
+            <div class="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300">
+                <h3 class="text-xl font-bold text-slate-900 mb-2">Cơ bản</h3>
+                <p class="text-slate-500 text-sm mb-8">Dành cho cá nhân mới bắt đầu</p>
+                <div class="flex items-baseline gap-1 mb-8">
+                    <span class="text-4xl font-extrabold text-slate-900">3Tr</span>
+                    <span class="text-slate-500 font-medium">/tháng</span>
+                </div>
+                <div class="space-y-4 mb-10">
+                    <div class="flex items-center gap-3 text-slate-600">
+                        <i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>
+                        <span>2 Chiến dịch quảng cáo</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-600">
+                        <i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>
+                        <span>Tối ưu Google & Facebook</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-600">
+                        <i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>
+                        <span>Báo cáo hàng tuần</span>
+                    </div>
+                </div>
+                <a href="{{ url_for('public.contact') }}" class="block w-full text-center py-4 px-6 border border-slate-200 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                    Chọn gói này
+                </a>
+            </div>
+
+            <!-- Plan 2 (Popular) -->
+            <div class="bg-white p-10 rounded-3xl border-4 border-primary shadow-2xl shadow-indigo-100 relative lg:scale-110 z-10 transition-all duration-300">
+                <div class="absolute -top-5 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg shadow-indigo-200">
+                    Phổ biến nhất
+                </div>
+                <h3 class="text-xl font-bold text-slate-900 mb-2">Chuyên nghiệp</h3>
+                <p class="text-slate-500 text-sm mb-8">Dành cho doanh nghiệp tăng trưởng</p>
+                <div class="flex items-baseline gap-1 mb-8">
+                    <span class="text-4xl font-extrabold text-slate-900">8Tr</span>
+                    <span class="text-slate-500 font-medium">/tháng</span>
+                </div>
+                <div class="space-y-4 mb-10">
+                    <div class="flex items-center gap-3 text-slate-600 font-medium">
+                        <i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>
+                        <span>10 Chiến dịch quảng cáo</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-600 font-medium">
+                        <i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>
+                        <span>Tối ưu TikTok & Youtube</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-600 font-medium">
+                        <i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>
+                        <span>Báo cáo thời gian thực</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-600 font-medium">
+                        <i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>
+                        <span>Chuyên viên hỗ trợ riêng</span>
+                    </div>
+                </div>
+                <a href="{{ url_for('public.contact') }}" class="block w-full text-center py-4 px-6 bg-primary text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95">
+                    Bắt đầu ngay
+                </a>
+            </div>
+
+            <!-- Plan 3 -->
+            <div class="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300">
+                <h3 class="text-xl font-bold text-slate-900 mb-2">Doanh nghiệp</h3>
+                <p class="text-slate-500 text-sm mb-8">Giải pháp tùy chỉnh quy mô lớn</p>
+                <div class="text-3xl font-extrabold text-slate-900 mb-8 tracking-tight uppercase">
+                    Liên hệ
+                </div>
+                <div class="space-y-4 mb-10">
+                    <div class="flex items-center gap-3 text-slate-600">
+                        <i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>
+                        <span>Không giới hạn chiến dịch</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-600">
+                        <i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>
+                        <span>Quản lý đa tài khoản</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-600">
+                        <i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>
+                        <span>Chiến lược tăng trưởng riêng</span>
+                    </div>
+                </div>
+                <a href="{{ url_for('public.contact') }}" class="block w-full text-center py-4 px-6 border border-slate-900 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-colors">
+                    Yêu cầu báo giá
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
