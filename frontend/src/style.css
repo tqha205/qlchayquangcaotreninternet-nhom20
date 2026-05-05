@@ -1,0 +1,48 @@
+/*
+ * frontend/src/style.css
+ * ======================
+ * CSS gốc cho Vite build pipeline.
+ * Tailwind được load ở đây, cùng với custom utilities cho Dark Mode.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Dark Mode overrides ───────────────────────── */
+@layer base {
+  html.dark {
+    color-scheme: dark;
+  }
+  html.dark body {
+    @apply bg-slate-900 text-slate-100;
+  }
+  html.dark .bg-white {
+    @apply bg-slate-800;
+  }
+  html.dark .border-slate-100 {
+    @apply border-slate-700;
+  }
+  html.dark .text-slate-900 {
+    @apply text-slate-100;
+  }
+  html.dark .text-slate-700 {
+    @apply text-slate-300;
+  }
+  html.dark .text-slate-500 {
+    @apply text-slate-400;
+  }
+  html.dark .bg-slate-50 {
+    @apply bg-slate-800;
+  }
+}
+
+/* ─── Dark Mode Toggle Button ───────────────────── */
+@layer components {
+  .dark-toggle {
+    @apply fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full
+           bg-slate-800 dark:bg-white text-white dark:text-slate-800
+           flex items-center justify-center
+           shadow-lg cursor-pointer transition-all duration-300
+           hover:scale-110 active:scale-95;
+  }
+}

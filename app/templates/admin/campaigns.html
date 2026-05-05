@@ -4,110 +4,518 @@
 {% block page_title %}Quản lý chiến dịch{% endblock %}
 {% block page_subtitle %}Danh sách toàn bộ các chiến dịch đang chạy trên đa nền tảng.{% endblock %}
 
+{% block head %}
+<style>
+    @keyframes slideIn  { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(110%); opacity: 0; } }
+    .toast-in  { animation: slideIn  0.3s ease forwards; }
+    .toast-out { animation: slideOut 0.3s ease forwards; }
+    .modal-overlay { backdrop-filter: blur(4px); }
+</style>
+{% endblock %}
+
 {% block content %}
+
+<!-- Toast Container -->
+<div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MODAL: Sửa chiến dịch
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="modal-edit" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay bg-slate-900/50">
+    <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl mx-4 animate-in fade-in zoom-in duration-300">
+        <div class="flex items-center justify-between px-8 py-6 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-50 p-2 rounded-xl">
+                    <i data-lucide="edit-3" class="w-5 h-5 text-amber-600"></i>
+                </div>
+                <h3 class="text-lg font-extrabold text-slate-900">Chỉnh sửa chiến dịch</h3>
+            </div>
+            <button onclick="closeModal('modal-edit')" class="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+            </button>
+        </div>
+        <form id="form-edit" onsubmit="event.preventDefault(); submitEditCampaign();" class="p-8 space-y-5">
+            <input type="hidden" id="edit-id">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="space-y-1.5 col-span-2">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Tên chiến dịch *</label>
+                    <input type="text" id="edit-name" required
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Nền tảng *</label>
+                    <select id="edit-platform"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none">
+                        <option value="Facebook">Facebook</option>
+                        <option value="Google">Google</option>
+                        <option value="TikTok">TikTok</option>
+                        <option value="Zalo">Zalo</option>
+                        <option value="Cốc Cốc">Cốc Cốc</option>
+                    </select>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Trạng thái</label>
+                    <select id="edit-status"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none">
+                        <option value="Đang chạy">Đang chạy</option>
+                        <option value="Tạm dừng">Tạm dừng</option>
+                        <option value="Kết thúc">Kết thúc</option>
+                    </select>
+                </div>
+                <div class="space-y-1.5 col-span-2 md:col-span-1">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Ngân sách (VNĐ) *</label>
+                    <input type="number" id="edit-budget" required min="1"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                </div>
+                <div class="space-y-1.5 col-span-2 md:col-span-1">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Link quảng cáo</label>
+                    <input type="url" id="edit-link" placeholder="https://..."
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                </div>
+                <div class="space-y-1.5 col-span-2 md:col-span-1">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Chi phí đã tiêu</label>
+                    <input type="number" id="edit-spent" min="0"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Ngày bắt đầu</label>
+                    <input type="date" id="edit-start-date"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Ngày kết thúc</label>
+                    <input type="date" id="edit-end-date"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                </div>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeModal('modal-edit')"
+                    class="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    Hủy
+                </button>
+                <button type="submit" id="btn-edit-submit"
+                    class="flex-1 py-3 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i> Lưu thay đổi
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MODAL: Xác nhận xóa
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="modal-delete" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay bg-slate-900/50">
+    <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl mx-4 p-8 animate-in fade-in zoom-in duration-300">
+        <div class="text-center">
+            <div class="bg-red-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                <i data-lucide="trash-2" class="w-8 h-8 text-red-500"></i>
+            </div>
+            <h3 class="text-xl font-extrabold text-slate-900 mb-2">Xác nhận xóa chiến dịch</h3>
+            <p class="text-slate-500 text-sm mb-2">Bạn có chắc chắn muốn xóa chiến dịch</p>
+            <p id="delete-cam-name" class="font-bold text-slate-900 mb-2"></p>
+            <p class="text-red-400 text-xs font-semibold bg-red-50 py-2 px-4 rounded-xl">Hành động này không thể hoàn tác!</p>
+        </div>
+        <input type="hidden" id="delete-cam-id">
+        <div class="flex gap-3 mt-6">
+            <button onclick="closeModal('modal-delete')"
+                class="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                Hủy
+            </button>
+            <button onclick="confirmDelete()" id="btn-confirm-delete"
+                class="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2">
+                <i data-lucide="trash-2" class="w-4 h-4"></i> Xóa
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     BẢNG CHIẾN DỊCH
+═══════════════════════════════════════════════════════════════════════════ -->
 <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <!-- Toolbar -->
     <div class="px-8 py-6 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-50/30">
         <div class="flex gap-4 w-full md:w-auto">
             <div class="relative flex-1 md:w-80">
                 <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
-                <input type="text" placeholder="Tìm kiếm chiến dịch..." class="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                <input type="text" id="search-input" placeholder="Tìm kiếm chiến dịch..." oninput="filterTable()"
+                    class="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
             </div>
-            <select class="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none pr-10 bg-[url('https://cdn-icons-png.flaticon.com/512/25/25618.png')] bg-[length:10px] bg-[right_1rem_center] bg-no-repeat">
-                <option>Tất cả nền tảng</option>
-                <option>Facebook</option>
-                <option>Google</option>
-                <option>TikTok</option>
+            <select id="filter-platform" onchange="filterTable()"
+                class="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none pr-8">
+                <option value="">Tất cả nền tảng</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Google">Google</option>
+                <option value="TikTok">TikTok</option>
+                <option value="Zalo">Zalo</option>
+                <option value="Cốc Cốc">Cốc Cốc</option>
             </select>
         </div>
-        <button class="w-full md:w-auto bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
-            <i data-lucide="plus" class="w-4 h-4"></i> Thêm mới
-        </button>
+        <a href="{{ url_for('admin.create_campaign') }}"
+            class="w-full md:w-auto bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i> Tạo quảng cáo
+        </a>
     </div>
-    
+
+    <!-- Table -->
     <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
             <thead>
                 <tr class="bg-slate-50/50">
-                    <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">#ID</th>
-                    <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Chiến dịch</th>
-                    <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Khách hàng</th>
-                    <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Nền tảng</th>
-                    <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Ngân sách</th>
-                    <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Tiến độ</th>
-                    <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Trạng thái</th>
-                    <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Thao tác</th>
+                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">#ID</th>
+                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Chiến dịch</th>
+                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Khách hàng</th>
+                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Nền tảng</th>
+                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Ngân sách</th>
+                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Tiến độ</th>
+                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Hiệu quả</th>
+                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Trạng thái</th>
+                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Preview</th>
+                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Thao tác</th>
                 </tr>
             </thead>
             <tbody id="campaign-list" class="divide-y divide-slate-50">
-                <!-- Data from JS -->
+                <tr id="table-loading">
+                    <td colspan="9" class="px-6 py-16 text-center">
+                        <div class="flex flex-col items-center gap-3">
+                            <span class="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></span>
+                            <span class="text-sm text-slate-400 font-medium">Đang tải dữ liệu...</span>
+                        </div>
+                    </td>
+                </tr>
             </tbody>
         </table>
+    </div>
+    <!-- Footer -->
+    <div class="px-6 py-4 bg-slate-50/30 border-t border-slate-50 flex items-center justify-between">
+        <span id="table-count" class="text-xs text-slate-400 font-medium"></span>
+        <span class="text-xs text-slate-400">Cập nhật tự động mỗi 60s</span>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// ─── Dữ liệu toàn cục ─────────────────────────────────────────────────────
+let allCampaigns = [];
+const userRole   = "{{ session.get('role', '') }}";
+
+// ─── Toast System ─────────────────────────────────────────────────────────
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const configs   = {
+        success: { bg: 'bg-emerald-500', icon: 'check-circle' },
+        error:   { bg: 'bg-red-500',     icon: 'x-circle'     },
+        warning: { bg: 'bg-amber-500',   icon: 'alert-triangle'},
+    };
+    const cfg   = configs[type] || configs.success;
+    const toast = document.createElement('div');
+    toast.className = `pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl
+                       text-white text-sm font-semibold shadow-2xl max-w-sm toast-in ${cfg.bg}`;
+    toast.innerHTML = `<i data-lucide="${cfg.icon}" class="w-5 h-5 flex-shrink-0"></i><span>${message}</span>`;
+    container.appendChild(toast);
+    lucide.createIcons();
+    setTimeout(() => {
+        toast.classList.replace('toast-in', 'toast-out');
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+// ─── Modal Helpers ─────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// Đóng modal khi click ra ngoài
+['modal-edit', 'modal-delete'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeModal(id);
+    });
+});
+
+// ─── Platform Badge Color ─────────────────────────────────────────────────
+function platformColor(p) {
+    const map = { Facebook: 'bg-blue-50 text-blue-600', Google: 'bg-red-50 text-red-600',
+                  TikTok: 'bg-slate-900 text-white', 'Cốc Cốc': 'bg-emerald-50 text-emerald-600',
+                  Zalo: 'bg-blue-50 text-blue-500' };
+    return map[p] || 'bg-slate-100 text-slate-600';
+}
+
+// ─── Status Badge Color ───────────────────────────────────────────────────
+function statusConfig(s) {
+    if (s === 'Đang chạy' || s === 'Active')
+        return { bg: 'bg-emerald-50 text-emerald-600', dot: 'bg-emerald-500' };
+    if (s === 'Tạm dừng')
+        return { bg: 'bg-amber-50 text-amber-600',   dot: 'bg-amber-500'   };
+    if (s === 'Chờ duyệt' || s === 'pending')
+        return { bg: 'bg-indigo-50 text-indigo-600', dot: 'bg-indigo-500' };
+    if (s === 'Từ chối' || s === 'rejected')
+        return { bg: 'bg-red-50 text-red-600', dot: 'bg-red-500' };
+    return      { bg: 'bg-slate-100 text-slate-500',  dot: 'bg-slate-400'   };
+}
+
+// ─── Efficiency Badge ─────────────────────────────────────────────────────
+function efficiencyBadge(label, color) {
+    const map = {
+        emerald: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+        amber:   'bg-amber-50 text-amber-700 border border-amber-200',
+        red:     'bg-red-50 text-red-700 border border-red-200 animate-pulse',
+    };
+    return `<span class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${map[color] || map.emerald}">${label}</span>`;
+}
+
+// ─── Render Table ─────────────────────────────────────────────────────────
+function renderTable(campaigns) {
+    const tbody = document.getElementById('campaign-list');
+    document.getElementById('table-count').textContent = `Hiển thị ${campaigns.length} chiến dịch`;
+
+    if (!campaigns.length) {
+        tbody.innerHTML = `
+            <tr><td colspan="9" class="px-6 py-16 text-center">
+                <div class="flex flex-col items-center gap-3">
+                    <i data-lucide="inbox" class="w-12 h-12 text-slate-200"></i>
+                    <p class="text-slate-400 font-medium">Chưa có chiến dịch nào</p>
+                </div>
+            </td></tr>`;
+        lucide.createIcons();
+        return;
+    }
+
+    tbody.innerHTML = campaigns.map(c => {
+        const pct   = c.budget ? Math.min(Math.round(c.spent / c.budget * 100), 100) : 0;
+        const pctColor = pct >= 90 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-primary';
+        const sc    = statusConfig(c.status);
+        const canDelete = userRole === 'admin';
+
+        return `
+        <tr class="hover:bg-slate-50/50 transition-colors group" data-name="${(c.name||'').toLowerCase()}" data-platform="${c.platform||''}">
+            <td class="px-6 py-5 text-xs font-bold text-slate-400">#${c.id}</td>
+            <td class="px-6 py-5">
+                <div class="flex items-center gap-2">
+                    <a href="/admin/campaigns/${c.id}" class="font-bold text-slate-900 text-sm whitespace-nowrap hover:text-primary hover:underline transition-colors">${c.name}</a>
+                    ${c.target_link ? `<a href="${c.target_link.startsWith('http') ? c.target_link : 'https://'+c.target_link}" target="_blank" class="p-1.5 bg-indigo-50 text-primary rounded-lg hover:bg-primary hover:text-white transition-all shadow-sm" title="Xem Trang Đích">
+                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    </a>` : ''}
+                </div>
+                <span class="text-[10px] text-slate-400 lowercase">${c.start_date ? c.start_date.substring(0,10) : ''} → ${c.end_date ? c.end_date.substring(0,10) : '∞'}</span>
+            </td>
+            <td class="px-6 py-5">
+                <a href="/admin/customers/${c.customer_id}" class="text-sm font-bold text-slate-600 hover:text-primary transition-colors truncate max-w-[150px] block" title="Xem chi tiết khách hàng: ${c.customer_name || ''}">${c.customer_name || 'N/A'}</a>
+                ${c.target_link ? `<a href="${c.target_link.startsWith('http') ? c.target_link : 'https://'+c.target_link}" target="_blank" class="text-[10px] text-slate-400 hover:text-primary hover:underline truncate max-w-[150px] block mt-1" title="${c.target_link}">${c.target_link}</a>` : ''}
+            </td>
+            <td class="px-6 py-5">
+                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${platformColor(c.platform)}">${c.platform || '-'}</span>
+            </td>
+            <td class="px-6 py-5">
+                <div class="font-extrabold text-slate-900 text-sm">${(c.budget/1000000).toFixed(1)}M</div>
+                <div class="text-[10px] text-slate-400 font-bold">Đã tiêu: ${(c.spent/1000000).toFixed(1)}M</div>
+            </td>
+            <td class="px-6 py-5 min-w-[140px]">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[10px] font-black text-primary">${pct}%</span>
+                    <span class="text-[10px] font-bold text-slate-300">Budget</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full ${pctColor} transition-all duration-1000 rounded-full" style="width:${pct}%"></div>
+                </div>
+            </td>
+            <td class="px-6 py-5">
+                ${efficiencyBadge(c.efficiency_label, c.efficiency_css)}
+            </td>
+            <td class="px-6 py-5">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${sc.bg}">
+                    <span class="w-1.5 h-1.5 rounded-full ${sc.dot} ${c.status==='Đang chạy'?'animate-pulse':''}"></span>
+                    ${c.status}
+                </span>
+            </td>
+            <td class="px-6 py-5">
+                <a href="/admin/ad/preview/${c.id}" class="p-2 bg-slate-50 text-slate-400 hover:bg-indigo-600 hover:text-white rounded-xl transition-all inline-flex items-center justify-center" title="Xem trước Ad Mockup">
+                    <i data-lucide="smartphone" class="w-4 h-4"></i>
+                </a>
+            </td>
+            <td class="px-6 py-5 text-right">
+                <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    ${userRole === 'admin' && c.approval_status === 'pending' ? `
+                    <button onclick="approveCampaign(${c.id})"
+                        class="p-2 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all" title="Duyệt chiến dịch">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="rejectCampaign(${c.id})"
+                        class="p-2 bg-red-50 border border-red-100 rounded-lg text-red-600 hover:bg-red-600 hover:text-white transition-all" title="Từ chối chiến dịch">
+                        <i data-lucide="x-circle" class="w-4 h-4"></i>
+                    </button>` : ''}
+                    <a href="/admin/campaigns/${c.id}"
+                        class="p-2 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all" title="Xem chi tiết">
+                        <i data-lucide="eye" class="w-4 h-4"></i>
+                    </a>
+                    ${userRole !== 'client' ? `
+                    <button onclick="openEditModal(${c.id})"
+                        class="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-amber-500 hover:border-amber-200 transition-all" title="Chỉnh sửa">
+                        <i data-lucide="edit-3" class="w-4 h-4"></i>
+                    </button>` : ''}
+                    ${canDelete ? `
+                    <button onclick="openDeleteModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')"
+                        class="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-red-500 hover:border-red-200 transition-all" title="Xóa">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>` : ''}
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+
+    lucide.createIcons();
+}
+
+// ─── Load Campaigns ────────────────────────────────────────────────────────
 async function loadCampaigns() {
     try {
-        const res = await fetch("{{ url_for('admin.get_campaigns') }}");
-        const cams = await res.json();
-        const list = document.getElementById('campaign-list');
-        
-        list.innerHTML = cams.map(c => {
-            const pct = c.budget ? Math.round(c.spent/c.budget*100) : 0;
-            const statusClass = c.status === 'Đang chạy' || c.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600';
-            const statusDot = c.status === 'Đang chạy' || c.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500';
-            
-            return `
-            <tr class="hover:bg-slate-50/50 transition-colors group">
-                <td class="px-8 py-5 text-xs font-bold text-slate-400">#${c.id}</td>
-                <td class="px-8 py-5">
-                    <span class="font-bold text-slate-900 block">${c.name}</span>
-                    <span class="text-[10px] text-slate-400 font-medium">Cập nhật 2 giờ trước</span>
-                </td>
-                <td class="px-8 py-5 text-sm font-medium text-slate-600">${c.customer_name || 'N/A'}</td>
-                <td class="px-8 py-5">
-                    <span class="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-wider">${c.platform}</span>
-                </td>
-                <td class="px-8 py-5">
-                    <div class="font-extrabold text-slate-900">${(c.budget/1000000).toFixed(1)}M</div>
-                    <div class="text-[10px] text-slate-400 font-bold">Đã tiêu: ${(c.spent/1000000).toFixed(1)}M</div>
-                </td>
-                <td class="px-8 py-5 min-w-[140px]">
-                    <div class="flex items-center justify-between mb-1.5 px-0.5">
-                        <span class="text-[10px] font-black text-primary">${pct}%</span>
-                        <span class="text-[10px] font-bold text-slate-300">Target</span>
-                    </div>
-                    <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div class="h-full bg-primary transition-all duration-1000 rounded-full" style="width: ${pct}%"></div>
-                    </div>
-                </td>
-                <td class="px-8 py-5">
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${statusClass}">
-                        <span class="w-1.5 h-1.5 rounded-full ${statusDot} animate-pulse"></span>
-                        ${c.status}
-                    </span>
-                </td>
-                <td class="px-8 py-5 text-right">
-                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button class="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-primary hover:border-primary transition-all">
-                            <i data-lucide="edit-3" class="w-4 h-4"></i>
-                        </button>
-                        <button class="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-red-500 hover:border-red-200 transition-all">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            `;
-        }).join('');
-        lucide.createIcons();
+        const res  = await fetch("{{ url_for('admin.get_campaigns') }}");
+        const data = await res.json();
+        allCampaigns = data;
+        filterTable();
     } catch (err) {
-        console.error('Error loading campaigns:', err);
+        document.getElementById('campaign-list').innerHTML =
+            `<tr><td colspan="9" class="px-6 py-12 text-center text-red-400 text-sm font-bold">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
     }
 }
+
+// ─── Approve/Reject Campaigns ─────────────────────────────────────────────
+async function approveCampaign(id) {
+    if(!confirm("Bạn có chắc chắn muốn duyệt chiến dịch này để bắt đầu chạy?")) return;
+    try {
+        const res = await fetch(`/admin/api/campaigns/${id}/approve`, { method: 'PUT' });
+        const result = await res.json();
+        if(result.success) {
+            showToast(result.message, 'success');
+            loadCampaigns();
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch(e) { showToast('Lỗi hệ thống', 'error'); }
+}
+
+async function rejectCampaign(id) {
+    if(!confirm("Bạn có chắc chắn muốn từ chối chiến dịch này?")) return;
+    try {
+        const res = await fetch(`/admin/api/campaigns/${id}/reject`, { method: 'PUT' });
+        const result = await res.json();
+        if(result.success) {
+            showToast(result.message, 'success');
+            loadCampaigns();
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch(e) { showToast('Lỗi hệ thống', 'error'); }
+}
+
+// ─── Filter Table ──────────────────────────────────────────────────────────
+function filterTable() {
+    const q  = (document.getElementById('search-input').value || '').toLowerCase();
+    const pf = document.getElementById('filter-platform').value;
+    const filtered = allCampaigns.filter(c => {
+        const matchName = !q || (c.name||'').toLowerCase().includes(q) || (c.customer_name||'').toLowerCase().includes(q);
+        const matchPf   = !pf || c.platform === pf;
+        return matchName && matchPf;
+    });
+    renderTable(filtered);
+}
+
+
+// ─── Open Edit Modal ───────────────────────────────────────────────────────
+function openEditModal(id) {
+    const c = allCampaigns.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('edit-id').value         = c.id;
+    document.getElementById('edit-name').value       = c.name;
+    document.getElementById('edit-platform').value   = c.platform;
+    document.getElementById('edit-link').value       = c.target_link || '';
+    document.getElementById('edit-status').value     = c.status;
+    document.getElementById('edit-budget').value     = c.budget;
+    document.getElementById('edit-spent').value      = c.spent;
+    document.getElementById('edit-start-date').value = c.start_date ? c.start_date.substring(0,10) : '';
+    document.getElementById('edit-end-date').value   = c.end_date   ? c.end_date.substring(0,10)   : '';
+    openModal('modal-edit');
+    lucide.createIcons();
+}
+
+// ─── Open Delete Modal ─────────────────────────────────────────────────────
+function openDeleteModal(id, name) {
+    document.getElementById('delete-cam-id').value = id;
+    document.getElementById('delete-cam-name').textContent = `"${name}"`;
+    openModal('modal-delete');
+    lucide.createIcons();
+}
+
+
+// ─── Submit Edit ───────────────────────────────────────────────────────────
+async function submitEditCampaign() {
+    const id   = document.getElementById('edit-id').value;
+    const btn  = document.getElementById('btn-edit-submit');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span> Đang lưu...';
+    btn.disabled = true;
+
+    const payload = {
+        name:        document.getElementById('edit-name').value,
+        platform:    document.getElementById('edit-platform').value,
+        target_link: document.getElementById('edit-link').value,
+        status:      document.getElementById('edit-status').value,
+        budget:      document.getElementById('edit-budget').value,
+        spent:       document.getElementById('edit-spent').value,
+        start_date:  document.getElementById('edit-start-date').value || null,
+        end_date:    document.getElementById('edit-end-date').value   || null,
+    };
+
+    try {
+        const res    = await fetch(`/admin/api/campaigns/${id}/update`, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            closeModal('modal-edit');
+            loadCampaigns();
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch (e) { showToast('Lỗi kết nối server!', 'error'); }
+    finally { btn.innerHTML = orig; btn.disabled = false; lucide.createIcons(); }
+}
+
+// ─── Confirm Delete ────────────────────────────────────────────────────────
+async function confirmDelete() {
+    const id  = document.getElementById('delete-cam-id').value;
+    const btn = document.getElementById('btn-confirm-delete');
+    btn.innerHTML = '<span class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>';
+    btn.disabled  = true;
+
+    try {
+        const res    = await fetch(`/admin/api/campaigns/${id}/delete`, { method: 'DELETE' });
+        const result = await res.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            closeModal('modal-delete');
+            loadCampaigns();
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch (e) { showToast('Lỗi kết nối server!', 'error'); }
+    finally {
+        btn.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i> Xóa';
+        btn.disabled = false;
+        lucide.createIcons();
+    }
+}
+
+// ─── Init ──────────────────────────────────────────────────────────────────
 loadCampaigns();
+setInterval(loadCampaigns, 60000); // Auto-refresh mỗi 60 giây
+
+// Tự động chuyển hướng nếu có tham số add=1 (khách hàng click từ Dashboard)
+if (window.location.search.includes('add=1')) {
+    window.location.href = "{{ url_for('admin.create_campaign') }}";
+}
 </script>
 {% endblock %}
-

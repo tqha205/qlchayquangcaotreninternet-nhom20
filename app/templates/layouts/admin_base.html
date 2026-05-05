@@ -54,18 +54,47 @@
                     <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
                     <span class="font-medium">Tổng quan</span>
                 </a>
+                
                 <a href="{{ url_for('admin.campaigns') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.campaigns' %}sidebar-active text-white{% endif %}">
                     <i data-lucide="target" class="w-5 h-5"></i>
                     <span class="font-medium">Chiến dịch QC</span>
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white">
+                
+                {% if session.get('role') != 'client' %}
+                <a href="{{ url_for('admin.customers') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.customers' %}sidebar-active text-white{% endif %}">
                     <i data-lucide="users" class="w-5 h-5"></i>
                     <span class="font-medium">Khách hàng</span>
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white">
+                {% endif %}
+
+                <a href="{{ url_for('reports.reports_page') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'reports.reports_page' %}sidebar-active text-white{% endif %}">
                     <i data-lucide="pie-chart" class="w-5 h-5"></i>
-                    <span class="font-medium">Báo cáo</span>
+                    <span class="font-medium">Xem Báo cáo</span>
                 </a>
+
+                {% if session.get('role') in ['admin', 'marketer'] %}
+                <a href="{{ url_for('admin.log_spending_page') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.log_spending_page' %}sidebar-active text-white{% endif %}">
+                    <i data-lucide="edit-3" class="w-5 h-5"></i>
+                    <span class="font-medium">Cập nhật báo cáo</span>
+                </a>
+                {% endif %}
+
+                {% if session.get('role') == 'admin' %}
+                <a href="{{ url_for('admin.users_page') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.users_page' %}sidebar-active text-white{% endif %}">
+                    <i data-lucide="user-cog" class="w-5 h-5"></i>
+                    <span class="font-medium">Quản lý User</span>
+                </a>
+
+                <a href="{{ url_for('admin.platforms_page') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.platforms_page' %}sidebar-active text-white{% endif %}">
+                    <i data-lucide="layers" class="w-5 h-5"></i>
+                    <span class="font-medium">Quản lý Dịch vụ</span>
+                </a>
+
+                <a href="{{ url_for('admin.transaction_manage') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.transaction_manage' %}sidebar-active text-white{% endif %}">
+                    <i data-lucide="credit-card" class="w-5 h-5"></i>
+                    <span class="font-medium">Quản lý nạp tiền</span>
+                </a>
+                {% endif %}
             </nav>
 
             <!-- Profile Section -->
@@ -96,10 +125,39 @@
                     <div id="clock" class="hidden sm:flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 shadow-sm">
                         <!-- Clock will be injected here -->
                     </div>
-                    <button class="relative bg-white p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:text-primary transition-all shadow-sm">
-                        <i data-lucide="bell" class="w-5 h-5"></i>
-                        <span class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                    </button>
+
+                    {% if session.get('role') == 'client' %}
+                    <!-- Balance Display for Client -->
+                    <div class="flex items-center gap-3 bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-xl shadow-sm">
+                        <div class="text-right">
+                            <p class="text-[10px] font-black uppercase tracking-tight text-indigo-400 leading-none mb-1">Số dư tài khoản</p>
+                            <p class="text-sm font-black text-indigo-700 leading-none" id="header-balance">
+                                {{ "{:,.0f}".format(balance|default(0)) }}đ
+                            </p>
+                        </div>
+                        <button onclick="openDepositModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-all shadow-md shadow-indigo-100 flex items-center gap-1.5" title="Nạp thêm tiền">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                            <span class="text-[10px] font-black uppercase">Nạp tiền</span>
+                        </button>
+                    </div>
+                    {% endif %}
+                    <!-- Notification Bell -->
+                    <div class="relative" id="notifWrapper">
+                        <button id="notifBtn" onclick="toggleNotifDropdown()" class="relative bg-white p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:text-primary transition-all shadow-sm">
+                            <i data-lucide="bell" class="w-5 h-5"></i>
+                            <span id="notifBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-[3px] border-2 border-white"></span>
+                        </button>
+                        <!-- Dropdown -->
+                        <div id="notifDropdown" class="hidden absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[200] overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
+                                <span class="font-bold text-sm text-slate-700">Thông báo</span>
+                                <button onclick="markAllRead()" class="text-xs text-primary hover:underline font-medium">Đánh dấu tất cả đã đọc</button>
+                            </div>
+                            <div id="notifList" class="max-h-72 overflow-y-auto divide-y divide-slate-50">
+                                <div class="text-center text-slate-400 text-sm py-8">Không có thông báo mới</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -107,6 +165,37 @@
                 {% block content %}{% endblock %}
             </div>
         </main>
+    </div>
+
+    <!-- Deposit Modal (Simulated) -->
+    <div id="depositModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <div class="indigo-gradient p-8 text-white relative">
+                <button onclick="closeDepositModal()" class="absolute top-6 right-6 text-white/50 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+                <div class="bg-white/20 w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
+                    <i data-lucide="wallet" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-2xl font-black">Nạp tiền vào tài khoản</h3>
+                <p class="text-indigo-100 text-sm mt-1">Hệ thống sẽ cộng tiền ngay lập tức (Simulation).</p>
+            </div>
+            <div class="p-8 space-y-6">
+                <div>
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Số tiền muốn nạp (VNĐ)</label>
+                    <input type="number" id="depositAmount" placeholder="Ví dụ: 5000000" class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-primary focus:bg-white outline-none transition-all font-bold text-lg">
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="setDepositAmount(1000000)" class="flex-1 py-2 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all underline-offset-4">1 Triệu</button>
+                    <button onclick="setDepositAmount(5000000)" class="flex-1 py-2 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all underline-offset-4">5 Triệu</button>
+                    <button onclick="setDepositAmount(10000000)" class="flex-1 py-2 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all underline-offset-4">10 Triệu</button>
+                </div>
+                <button onclick="handleDeposit()" id="depositSubmitBtn" class="w-full bg-primary text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
+                    <i data-lucide="zap" class="w-5 h-5"></i>
+                    Xác nhận nạp tiền
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -126,6 +215,129 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+
+        // ── Notification System ───────────────────────────────────────────────
+        const NOTIF_ICONS = {
+            budget_warning:  { icon: 'alert-triangle', color: 'text-amber-500', bg: 'bg-amber-50' },
+            budget_exceeded: { icon: 'x-circle',       color: 'text-red-500',   bg: 'bg-red-50'   },
+            campaign_ended:  { icon: 'check-circle',   color: 'text-emerald-500', bg: 'bg-emerald-50' },
+        };
+
+        async function fetchNotifications() {
+            try {
+                const res  = await fetch('/admin/api/notifications');
+                if (!res.ok) return;
+                const json = await res.json();
+                renderNotifications(json.data || [], json.unread_count || 0);
+            } catch(_) {}
+        }
+
+        function renderNotifications(items, count) {
+            const badge = document.getElementById('notifBadge');
+            const list  = document.getElementById('notifList');
+            if (!badge || !list) return;
+
+            // Badge
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            // List
+            if (items.length === 0) {
+                list.innerHTML = '<div class="text-center text-slate-400 text-sm py-8 flex flex-col items-center gap-2"><i data-lucide="bell-off" class="w-8 h-8 opacity-40"></i>Không có thông báo mới</div>';
+                lucide.createIcons();
+                return;
+            }
+
+            list.innerHTML = items.map(n => {
+                const cfg = NOTIF_ICONS[n.type] || { icon: 'info', color: 'text-slate-500', bg: 'bg-slate-50' };
+                return `
+                <div class="flex gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors ${cfg.bg}" onclick="markOneRead(${n.id}, this)">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full ${cfg.bg} flex items-center justify-center mt-0.5">
+                        <i data-lucide="${cfg.icon}" class="w-4 h-4 ${cfg.color}"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-semibold text-slate-700 truncate">${n.campaign_name}</p>
+                        <p class="text-xs text-slate-500 leading-snug mt-0.5">${n.message}</p>
+                        <p class="text-[10px] text-slate-400 mt-1">${n.created_at}</p>
+                    </div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        async function markOneRead(id, el) {
+            await fetch(`/admin/api/notifications/${id}/read`, { method: 'POST' });
+            el.remove();
+            fetchNotifications();
+        }
+
+        async function markAllRead() {
+            await fetch('/admin/api/notifications/read-all', { method: 'POST' });
+            fetchNotifications();
+            document.getElementById('notifDropdown').classList.add('hidden');
+        }
+
+        function toggleNotifDropdown() {
+            const dd = document.getElementById('notifDropdown');
+            dd.classList.toggle('hidden');
+            if (!dd.classList.contains('hidden')) fetchNotifications();
+        }
+
+        // Đóng dropdown khi click ra ngoài
+        document.addEventListener('click', (e) => {
+            const wrapper = document.getElementById('notifWrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                document.getElementById('notifDropdown')?.classList.add('hidden');
+            }
+        });
+
+        // Polling mỗi 60 giây
+        fetchNotifications();
+        setInterval(fetchNotifications, 60000);
+
+        // ── Deposit Logic ─────────────────────────────────────────────────────
+        function openDepositModal() {
+            location.href = "{{ url_for('admin.deposit_page') }}";
+        }
+        function closeDepositModal() {
+            document.getElementById('depositModal').classList.add('hidden');
+        }
+        function setDepositAmount(val) {
+            document.getElementById('depositAmount').value = val;
+        }
+        async function handleDeposit() {
+            const amount = document.getElementById('depositAmount').value;
+            if (!amount || amount <= 0) return alert('Vui lòng nhập số tiền hợp lệ!');
+
+            const btn = document.getElementById('depositSubmitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>';
+
+            try {
+                const res = await fetch("{{ url_for('admin.deposit') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: parseFloat(amount) })
+                });
+                const json = await res.json();
+                if (json.success) {
+                    alert(json.message);
+                    location.reload(); // Reload để cập nhật số dư everywhere
+                } else {
+                    alert('Lỗi: ' + json.message);
+                }
+            } catch (err) {
+                alert('Lỗi kết nối hệ thống!');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="zap" class="w-5 h-5"></i> Xác nhận nạp tiền';
+                lucide.createIcons();
+            }
+        }
     </script>
     {% block scripts %}{% endblock %}
 </body>

@@ -1,0 +1,678 @@
+{% extends "layouts/admin_base.html" %}
+
+{% block title %}Khách hàng - ADS Manager{% endblock %}
+{% block page_title %}Quản lý khách hàng{% endblock %}
+{% block page_subtitle %}Danh sách khách hàng và yêu cầu tư vấn đang chờ xử lý.{% endblock %}
+
+{% block head %}
+<style>
+    @keyframes slideIn  { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(110%); opacity: 0; } }
+    .toast-in  { animation: slideIn 0.3s ease forwards; }
+    .toast-out { animation: slideOut 0.3s ease forwards; }
+    .modal-overlay { backdrop-filter: blur(4px); }
+    .tab-active { background: white; color: #4F46E5; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .tab-active i { color: #4F46E5; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Toast Container -->
+<div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
+
+<!-- ═══ MODAL: Thêm / Sửa khách hàng ════════════════════════════════════════ -->
+<div id="modal-customer" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay bg-slate-900/50">
+    <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl mx-4 animate-in fade-in zoom-in duration-300">
+        <div class="flex items-center justify-between px-8 py-6 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <div id="modal-icon-wrap" class="bg-indigo-50 p-2 rounded-xl">
+                    <i id="modal-icon" data-lucide="user-plus" class="w-5 h-5 text-primary"></i>
+                </div>
+                <h3 id="modal-title" class="text-lg font-extrabold text-slate-900">Thêm khách hàng mới</h3>
+            </div>
+            <button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+            </button>
+        </div>
+        <form id="form-customer" onsubmit="event.preventDefault(); submitCustomer();" class="p-8 space-y-4">
+            <input type="hidden" id="customer-id">
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Tên khách hàng / Công ty *</label>
+                <div class="relative">
+                    <i data-lucide="building-2" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                    <input type="text" id="cust-name" required placeholder="Công ty ABC..."
+                        class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Email</label>
+                    <div class="relative">
+                        <i data-lucide="mail" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                        <input type="email" id="cust-email" placeholder="contact@company.vn"
+                            class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Số điện thoại</label>
+                    <div class="relative">
+                        <i data-lucide="phone" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                        <input type="text" id="cust-phone" placeholder="0901xxxxxx"
+                            class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Công ty / Tổ chức</label>
+                    <div class="relative">
+                        <i data-lucide="building-2" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                        <input type="text" id="cust-company" placeholder="Công ty TNHH ABC..."
+                            class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                    </div>
+                </div>
+                <div id="marketer-wrap" class="space-y-1.5 hidden">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Nhân viên phụ trách</label>
+                    <div class="relative">
+                        <i data-lucide="user-check" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                        <select id="cust-marketer" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none">
+                            <option value="">-- Chưa phân công --</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeModal()"
+                    class="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    Hủy
+                </button>
+                <button type="submit" id="btn-submit"
+                    class="flex-1 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="check" class="w-4 h-4"></i> Lưu
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══ MODAL: Xác nhận xóa KH ══════════════════════════════════════════════ -->
+<div id="modal-delete" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay bg-slate-900/50">
+    <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl mx-4 p-8 text-center animate-in fade-in zoom-in duration-300">
+        <div class="bg-red-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <i data-lucide="user-x" class="w-8 h-8 text-red-500"></i>
+        </div>
+        <h3 class="text-xl font-extrabold text-slate-900 mb-2">Xác nhận xóa khách hàng</h3>
+        <p class="text-slate-500 text-sm mb-2">Bạn có chắc muốn xóa</p>
+        <p id="delete-name" class="font-bold text-slate-900 mb-1"></p>
+        <p class="text-red-400 text-xs font-semibold bg-red-50 py-2 px-4 rounded-xl mb-5">
+            Toàn bộ chiến dịch liên quan cũng sẽ bị xóa!
+        </p>
+        <input type="hidden" id="delete-id">
+        <div class="flex gap-3">
+            <button onclick="document.getElementById('modal-delete').classList.add('hidden')"
+                class="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                Hủy
+            </button>
+            <button onclick="confirmDelete()" id="btn-confirm-delete"
+                class="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2">
+                <i data-lucide="trash-2" class="w-4 h-4"></i> Xóa
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODAL: Xem danh sách chiến dịch của KH ════════════════════════════════ -->
+<div id="modal-view-cams" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay bg-slate-900/50">
+    <div class="bg-white w-full max-w-4xl rounded-[2rem] shadow-2xl mx-4 overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div class="flex items-center justify-between px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary/10 p-2 rounded-xl">
+                    <i data-lucide="target" class="w-5 h-5 text-primary"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-extrabold text-slate-900">Chiến dịch của khách hàng</h3>
+                    <p id="view-cust-name" class="text-xs text-slate-400 font-bold uppercase tracking-wider"></p>
+                </div>
+            </div>
+            <button onclick="document.getElementById('modal-view-cams').classList.add('hidden')" class="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+            </button>
+        </div>
+        <div class="max-h-[60vh] overflow-y-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="sticky top-0 bg-white shadow-sm z-10">
+                    <tr class="bg-slate-50/80">
+                        <th class="px-6 py-4 text-[10px] font-black uppercase text-slate-400">Chiến dịch</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase text-slate-400">Nền tảng</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase text-slate-400 text-right">Ngân sách</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase text-slate-400">Tiền độ</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase text-slate-400">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody id="view-cam-list" class="divide-y divide-slate-50">
+                    <!-- Data here -->
+                </tbody>
+            </table>
+        </div>
+        <div class="p-6 bg-slate-50/50 border-t border-slate-100 text-right">
+            <button onclick="document.getElementById('modal-view-cams').classList.add('hidden')"
+                class="px-6 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                Đóng
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ TAB NAV ═══════════════════════════════════════════════════════════════ -->
+<div class="flex gap-1 bg-slate-100 p-1 rounded-2xl w-fit mb-6">
+    <button id="tab-customers" onclick="switchTab('customers')"
+        class="tab-active flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all text-slate-500">
+        <i data-lucide="users" class="w-4 h-4"></i>
+        Khách hàng <span id="badge-customers" class="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-black"></span>
+    </button>
+    <button id="tab-inquiries" onclick="switchTab('inquiries')"
+        class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all text-slate-500">
+        <i data-lucide="inbox" class="w-4 h-4"></i>
+        Yêu cầu tư vấn <span id="badge-inquiries" class="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-black"></span>
+    </button>
+</div>
+
+<!-- ═══ TAB: DANH SÁCH KHÁCH HÀNG ════════════════════════════════════════════ -->
+<div id="panel-customers" class="animate-in fade-in duration-300">
+    <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+        <!-- Toolbar -->
+        <div class="px-8 py-5 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-50/30">
+            <div class="relative w-full md:w-80">
+                <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+                <input type="text" id="search-customers" placeholder="Tìm theo tên, email, SĐT..." oninput="filterCustomers()"
+                    class="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+            </div>
+            <button onclick="openAddModal()"
+                class="w-full md:w-auto bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                <i data-lucide="user-plus" class="w-4 h-4"></i> Thêm khách hàng
+            </button>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-slate-50/50">
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">#</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Khách hàng</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Liên hệ</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Chiến dịch</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Tổng ngân sách</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Ngày tạo</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="customer-list" class="divide-y divide-slate-50">
+                    <tr><td colspan="7" class="px-6 py-16 text-center">
+                        <span class="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin inline-block"></span>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="px-6 py-4 bg-slate-50/30 border-t border-slate-50">
+            <span id="count-customers" class="text-xs text-slate-400 font-medium"></span>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ TAB: INQUIRIES ════════════════════════════════════════════════════════ -->
+<div id="panel-inquiries" class="hidden animate-in fade-in duration-300">
+    <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-slate-50/50">
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">#</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Người liên hệ</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Dịch vụ quan tâm</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Tin nhắn</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Trạng thái</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Thời gian</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="inquiry-list" class="divide-y divide-slate-50">
+                    <tr><td colspan="7" class="px-6 py-16 text-center">
+                        <span class="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin inline-block"></span>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allCustomers  = [];
+let allInquiries  = [];
+let allMarketers  = [];
+let currentEditId = null;
+const userRole    = "{{ session.get('role', '') }}";
+
+// ─── Toast ────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+    const cfg = {
+        success: { bg: 'bg-emerald-500', icon: 'check-circle'   },
+        error:   { bg: 'bg-red-500',     icon: 'x-circle'       },
+        warning: { bg: 'bg-amber-500',   icon: 'alert-triangle' },
+    }[type] || { bg: 'bg-emerald-500', icon: 'check-circle' };
+
+    const t = document.createElement('div');
+    t.className = `pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl
+                   text-white text-sm font-semibold shadow-2xl max-w-sm toast-in ${cfg.bg}`;
+    t.innerHTML = `<i data-lucide="${cfg.icon}" class="w-5 h-5 flex-shrink-0"></i><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(t);
+    lucide.createIcons();
+    setTimeout(() => { t.classList.replace('toast-in','toast-out'); setTimeout(()=>t.remove(),300); }, 3500);
+}
+
+// ─── Tab Switch ───────────────────────────────────────────────────────────
+function switchTab(tab) {
+    ['customers','inquiries'].forEach(t => {
+        document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== tab);
+        document.getElementById(`tab-${t}`).classList.toggle('tab-active', t === tab);
+        document.getElementById(`tab-${t}`).classList.toggle('text-slate-500', t !== tab);
+    });
+    if (tab === 'inquiries') loadInquiries();
+}
+
+// ─── Modal Helpers ────────────────────────────────────────────────────────
+function openAddModal() {
+    currentEditId = null;
+    document.getElementById('form-customer').reset();
+    document.getElementById('customer-id').value = '';
+    document.getElementById('modal-title').textContent = 'Thêm khách hàng mới';
+    document.getElementById('modal-icon').setAttribute('data-lucide', 'user-plus');
+    document.getElementById('modal-icon-wrap').className = 'bg-indigo-50 p-2 rounded-xl';
+    document.getElementById('btn-submit').className = 'flex-1 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2';
+    
+    if (userRole === 'admin') {
+        document.getElementById('marketer-wrap').classList.remove('hidden');
+        document.getElementById('cust-marketer').value = '';
+    }
+    
+    document.getElementById('modal-customer').classList.remove('hidden');
+    lucide.createIcons();
+}
+
+function openEditModal(id) {
+    const c = allCustomers.find(x => x.id === id);
+    if (!c) return;
+    currentEditId = id;
+    document.getElementById('customer-id').value  = id;
+    document.getElementById('cust-name').value    = c.name    || '';
+    document.getElementById('cust-email').value   = c.email   || '';
+    document.getElementById('cust-phone').value   = c.phone   || '';
+    document.getElementById('cust-company').value = c.company || '';
+    document.getElementById('modal-title').textContent = 'Chỉnh sửa khách hàng';
+    document.getElementById('modal-icon').setAttribute('data-lucide', 'edit-3');
+    document.getElementById('modal-icon-wrap').className = 'bg-amber-50 p-2 rounded-xl';
+    document.getElementById('btn-submit').className = 'flex-1 py-3 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-all flex items-center justify-center gap-2';
+    
+    if (userRole === 'admin') {
+        document.getElementById('marketer-wrap').classList.remove('hidden');
+        document.getElementById('cust-marketer').value = c.marketer_id || '';
+    }
+    
+    document.getElementById('modal-customer').classList.remove('hidden');
+    lucide.createIcons();
+}
+
+function closeModal() {
+    document.getElementById('modal-customer').classList.add('hidden');
+}
+
+function openDeleteModal(id, name) {
+    document.getElementById('delete-id').value      = id;
+    document.getElementById('delete-name').textContent = `"${name}"`;
+    document.getElementById('modal-delete').classList.remove('hidden');
+    lucide.createIcons();
+}
+
+// ─── Load Customers ───────────────────────────────────────────────────────
+async function loadCustomers() {
+    try {
+        const res      = await fetch("{{ url_for('admin.get_customers_list') }}");
+        allCustomers   = await res.json();
+        document.getElementById('badge-customers').textContent = allCustomers.length;
+        filterCustomers();
+    } catch (e) { console.error(e); }
+}
+
+async function loadMarketers() {
+    if (userRole !== 'admin') return;
+    try {
+        const res = await fetch("/admin/api/marketers");
+        allMarketers = await res.json();
+        const select = document.getElementById('cust-marketer');
+        allMarketers.forEach(m => {
+            select.add(new Option(m.full_name || m.username, m.id));
+        });
+    } catch (e) { console.error(e); }
+}
+
+function filterCustomers() {
+    const q = (document.getElementById('search-customers').value || '').toLowerCase();
+    const filtered = allCustomers.filter(c =>
+        !q || (c.name||'').toLowerCase().includes(q) ||
+              (c.email||'').toLowerCase().includes(q) ||
+              (c.phone||'').toLowerCase().includes(q)
+    );
+    renderCustomers(filtered);
+}
+
+function renderCustomers(list) {
+    const tbody = document.getElementById('customer-list');
+    document.getElementById('count-customers').textContent = `Hiển thị ${list.length} khách hàng`;
+
+    if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center">
+            <div class="flex flex-col items-center gap-3">
+                <i data-lucide="users" class="w-12 h-12 text-slate-200"></i>
+                <p class="text-slate-400 font-medium">Chưa có khách hàng nào</p>
+            </div></td></tr>`;
+        lucide.createIcons();
+        return;
+    }
+
+    tbody.innerHTML = list.map(c => {
+        const initials = (c.name || '?').split(' ').map(w=>w[0]).slice(-2).join('').toUpperCase();
+        const colors   = ['bg-indigo-500','bg-emerald-500','bg-amber-500','bg-pink-500','bg-cyan-500'];
+        const color    = colors[c.id % colors.length];
+        const canDelete = userRole === 'admin';
+
+        return `
+        <tr class="hover:bg-slate-50/50 transition-colors group">
+            <td class="px-6 py-5 text-xs font-bold text-slate-400">#${c.id}</td>
+            <td class="px-6 py-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 ${color} rounded-full flex items-center justify-center text-white text-xs font-extrabold flex-shrink-0">
+                        ${initials}
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-900 text-sm">${c.name}</p>
+                        <p class="text-[10px] text-slate-400">${c.company || 'Chưa cập nhật công ty'}</p>
+                    </div>
+                </div>
+            </td>
+            <td class="px-6 py-5">
+                <p class="text-sm text-slate-700">${c.email || '-'}</p>
+                <p class="text-xs text-slate-400">${c.phone || '-'}</p>
+                ${c.marketer_name ? `<p class="text-[10px] text-indigo-500 font-medium mt-1"><i data-lucide="user-check" class="w-3 h-3 inline"></i> ${c.marketer_name}</p>` : ''}
+            </td>
+            <td class="px-6 py-5">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-extrabold text-slate-900">${c.total_campaigns || 0}</span>
+                    <span class="text-[10px] text-slate-400">chiến dịch</span>
+                </div>
+                ${c.active_campaigns > 0 ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-0.5">
+                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                    ${c.active_campaigns} đang chạy
+                </span>` : ''}
+            </td>
+            <td class="px-6 py-5 font-semibold text-slate-700 text-sm">
+                ${c.total_budget > 0 ? (c.total_budget/1000000).toFixed(1) + 'M' : '-'}
+            </td>
+            <td class="px-6 py-5 text-xs text-slate-400">
+                ${c.created_at ? new Date(c.created_at).toLocaleDateString('vi-VN') : '-'}
+            </td>
+            <td class="px-6 py-5 text-right">
+                <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="viewCustomerCampaigns(${c.id}, '${c.name.replace(/'/g,"\\'")}')"
+                        class="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-primary hover:border-primary/20 transition-all" title="Xem chiến dịch">
+                        <i data-lucide="target" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="openEditModal(${c.id})"
+                        class="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-amber-500 hover:border-amber-200 transition-all" title="Chỉnh sửa">
+                        <i data-lucide="edit-3" class="w-4 h-4"></i>
+                    </button>
+                    ${canDelete ? `
+                    <button onclick="openDeleteModal(${c.id}, '${c.name.replace(/'/g,"\\'")}' )"
+                        class="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-red-500 hover:border-red-200 transition-all" title="Xóa">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>` : ''}
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+    lucide.createIcons();
+}
+
+// ─── Load Inquiries ───────────────────────────────────────────────────────
+async function loadInquiries() {
+    try {
+        const res    = await fetch("{{ url_for('admin.get_inquiries') }}");
+        allInquiries = await res.json();
+        const newCount = allInquiries.filter(i => i.status === 'new').length;
+        document.getElementById('badge-inquiries').textContent = newCount || '';
+        renderInquiries(allInquiries);
+    } catch (e) { console.error(e); }
+}
+
+function renderInquiries(list) {
+    const tbody = document.getElementById('inquiry-list');
+    if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center">
+            <div class="flex flex-col items-center gap-3">
+                <i data-lucide="inbox" class="w-12 h-12 text-slate-200"></i>
+                <p class="text-slate-400 font-medium">Chưa có yêu cầu tư vấn nào</p>
+            </div></td></tr>`;
+        lucide.createIcons();
+        return;
+    }
+
+    const statusCfg = {
+        new:     { bg: 'bg-amber-50 text-amber-700',   dot: 'bg-amber-400',   label: 'Mới'        },
+        read:    { bg: 'bg-blue-50 text-blue-600',     dot: 'bg-blue-400',    label: 'Đã đọc'     },
+        replied: { bg: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500', label: 'Đã xử lý'  },
+    };
+
+    tbody.innerHTML = list.map(i => {
+        const sc  = statusCfg[i.status] || statusCfg.new;
+        const dt  = i.created_at ? new Date(i.created_at).toLocaleString('vi-VN', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+        const canApprove = i.status !== 'replied';
+
+        return `
+        <tr class="hover:bg-slate-50/50 transition-colors group">
+            <td class="px-6 py-5 text-xs font-bold text-slate-400">#${i.id}</td>
+            <td class="px-6 py-5">
+                <p class="font-bold text-slate-900 text-sm">${i.name}</p>
+                <p class="text-xs text-slate-400">${i.email || '-'} · ${i.phone || '-'}</p>
+            </td>
+            <td class="px-6 py-5">
+                <span class="px-2.5 py-1 bg-indigo-50 text-primary text-[10px] font-black uppercase tracking-wider rounded-full">
+                    ${i.service || 'Chưa chỉ định'}
+                </span>
+            </td>
+            <td class="px-6 py-5 max-w-[200px]">
+                <p class="text-sm text-slate-600 truncate" title="${i.message||''}">${i.message || '-'}</p>
+            </td>
+            <td class="px-6 py-5">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase ${sc.bg}">
+                    <span class="w-1.5 h-1.5 rounded-full ${sc.dot} ${i.status==='new'?'animate-pulse':''}"></span>
+                    ${sc.label}
+                </span>
+            </td>
+            <td class="px-6 py-5 text-xs text-slate-400">${dt}</td>
+            <td class="px-6 py-5 text-right">
+                ${canApprove ? `
+                <button onclick="approveInquiry(${i.id}, this)"
+                    class="px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-1.5 ml-auto">
+                    <i data-lucide="user-check" class="w-3.5 h-3.5"></i> Phê duyệt → KH
+                </button>` : `
+                <span class="text-[10px] text-slate-400 font-medium">Đã xử lý</span>`}
+            </td>
+        </tr>`;
+    }).join('');
+    lucide.createIcons();
+}
+
+// ─── Submit Customer (Add / Edit) ─────────────────────────────────────────
+async function submitCustomer() {
+    const btn  = document.getElementById('btn-submit');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>';
+    btn.disabled  = true;
+
+    const payload = {
+        name:    document.getElementById('cust-name').value,
+        email:   document.getElementById('cust-email').value,
+        phone:   document.getElementById('cust-phone').value,
+        company: document.getElementById('cust-company').value,
+        marketer_id: userRole === 'admin' ? document.getElementById('cust-marketer').value || null : undefined
+    };
+
+    const isEdit = !!currentEditId;
+    const url    = isEdit
+        ? `/admin/api/customers/${currentEditId}/update`
+        : "{{ url_for('admin.add_customer') }}";
+    const method = isEdit ? 'PUT' : 'POST';
+
+    try {
+        const res    = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const result = await res.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            closeModal();
+            loadCustomers();
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch(e) { showToast('Lỗi kết nối server!', 'error'); }
+    finally { btn.innerHTML = orig; btn.disabled = false; lucide.createIcons(); }
+}
+
+// ─── Delete Customer ──────────────────────────────────────────────────────
+async function confirmDelete() {
+    const id  = document.getElementById('delete-id').value;
+    const btn = document.getElementById('btn-confirm-delete');
+    btn.innerHTML = '<span class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>';
+    btn.disabled = true;
+
+    try {
+        const res    = await fetch(`/admin/api/customers/${id}/delete`, { method: 'DELETE' });
+        const result = await res.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            document.getElementById('modal-delete').classList.add('hidden');
+            loadCustomers();
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch(e) { showToast('Lỗi kết nối server!', 'error'); }
+    finally {
+        btn.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i> Xóa';
+        btn.disabled = false; lucide.createIcons();
+    }
+}
+
+// ─── Approve Inquiry ──────────────────────────────────────────────────────
+async function approveInquiry(id, btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="w-3.5 h-3.5 border-2 border-emerald-400/40 border-t-emerald-600 rounded-full animate-spin"></span>';
+    btn.disabled = true;
+
+    try {
+        const res    = await fetch(`/admin/api/inquiries/${id}/approve`, { method: 'POST' });
+        const result = await res.json();
+        if (result.success) {
+            showToast(result.message + ' — Đã thêm vào danh sách khách hàng.', 'success');
+            loadInquiries();
+            // Cập nhật lại badge customers
+            loadCustomers();
+        } else {
+            showToast(result.message, 'error');
+            btn.innerHTML = orig; btn.disabled = false; lucide.createIcons();
+        }
+    } catch(e) {
+        showToast('Lỗi kết nối server!', 'error');
+        btn.innerHTML = orig; btn.disabled = false; lucide.createIcons();
+    }
+}
+
+// ─── View Customer Campaigns ──────────────────────────────────────────────
+async function viewCustomerCampaigns(id, name) {
+    document.getElementById('view-cust-name').textContent = name;
+    document.getElementById('view-cam-list').innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center"><span class="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin inline-block"></span></td></tr>`;
+    document.getElementById('modal-view-cams').classList.remove('hidden');
+    lucide.createIcons();
+
+    try {
+        const res  = await fetch(`/admin/api/customers/${id}/campaigns`);
+        const cams = await res.json();
+        
+        if (!cams.length) {
+            document.getElementById('view-cam-list').innerHTML = `<tr><td colspan="5" class="px-6 py-12 text-center text-slate-400 italic">Khách hàng này chưa có chiến dịch nào.</td></tr>`;
+            return;
+        }
+
+        document.getElementById('view-cam-list').innerHTML = cams.map(c => {
+            const pct = c.budget ? Math.min(Math.round(c.spent/c.budget*100),100) : 0;
+            const pctColor = pct >= 90 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-primary';
+            return `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-2">
+                        <p class="font-bold text-slate-800">${c.name}</p>
+                        ${c.target_link ? `<a href="${c.target_link}" target="_blank" class="text-slate-300 hover:text-primary"><i data-lucide="external-link" class="w-3 h-3"></i></a>` : ''}
+                    </div>
+                    <p class="text-[10px] text-slate-400">${c.start_date ? c.start_date.substring(0,10) : ''} → ${c.end_date ? c.end_date.substring(0,10) : '∞'}</p>
+                </td>
+                <td class="px-6 py-4 text-xs font-bold text-slate-500 uppercase">${c.platform}</td>
+                <td class="px-6 py-4 text-right font-medium text-slate-600">${(c.budget/1000000).toFixed(1)}M</td>
+                <td class="px-6 py-4 min-w-[120px]">
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full ${pctColor}" style="width:${pct}%"></div>
+                        </div>
+                        <span class="text-[10px] font-black text-slate-400">${pct}%</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-[10px] font-black uppercase px-2 py-1 bg-slate-100 text-slate-500 rounded-full">${c.status}</span>
+                </td>
+            </tr>`;
+        }).join('');
+        lucide.createIcons();
+    } catch(e) {
+        document.getElementById('view-cam-list').innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-red-500">Lỗi tải dữ liệu</td></tr>`;
+    }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+loadMarketers();
+loadCustomers();
+
+// Tự động filter nếu có id trong URL
+const urlParams = new URLSearchParams(window.location.search);
+const filterId  = urlParams.get('id');
+if (filterId) {
+    const checkData = setInterval(() => {
+        if (allCustomers.length > 0) {
+            const found = allCustomers.find(x => x.id == filterId);
+            if (found) {
+                document.getElementById('search-customers').value = found.name;
+                filterCustomers();
+            }
+            clearInterval(checkData);
+        }
+    }, 100);
+}
+// Load inquiry badge count khi init
+fetch("{{ url_for('admin.get_inquiries') }}")
+    .then(r => r.json())
+    .then(data => {
+        const n = data.filter(i => i.status === 'new').length;
+        document.getElementById('badge-inquiries').textContent = n || '';
+    }).catch(() => {});
+</script>
+{% endblock %}

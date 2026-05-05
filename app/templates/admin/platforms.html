@@ -1,0 +1,219 @@
+{% extends "layouts/admin_base.html" %}
+
+{% block title %}Quản lý Dịch vụ - ADS Manager{% endblock %}
+{% block page_title %}Quản lý Dịch vụ{% endblock %}
+{% block page_subtitle %}Thiết lập các nền tảng quảng cáo mà hệ thống hỗ trợ.{% endblock %}
+
+{% block content %}
+<div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3"></div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- LEFT: ADD FORM -->
+    <div class="lg:col-span-1">
+        <div class="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm sticky top-8">
+            <h3 id="form-title" class="text-xl font-black text-slate-900 mb-6 flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-6 h-6 text-primary"></i>
+                Thêm dịch vụ mới
+            </h3>
+            <form id="form-platform" onsubmit="event.preventDefault(); submitPlatform();" class="space-y-5">
+                <input type="hidden" id="p-id">
+                <div>
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Tên nền tảng (Ví dụ: Facebook Ads)</label>
+                    <input type="text" id="p-name" required placeholder="Facebook Ads, TikTok..." class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-primary focus:bg-white outline-none text-sm font-bold transition-all">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">ID Tài khoản quảng cáo (Tùy chọn)</label>
+                    <input type="text" id="p-acc" placeholder="123456789..." class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-primary focus:bg-white outline-none text-sm font-bold transition-all">
+                </div>
+                <div id="status-group" class="hidden">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Trạng thái</label>
+                    <select id="p-status" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-primary focus:bg-white outline-none text-sm font-bold appearance-none">
+                        <option value="active">Đang hoạt động</option>
+                        <option value="inactive">Tạm ngưng</option>
+                    </select>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" id="btn-cancel" onclick="resetForm()" class="hidden flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold transition-all">Hủy</button>
+                    <button type="submit" id="btn-submit" class="flex-1 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">Lưu dịch vụ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- RIGHT: LIST TABLE -->
+    <div class="lg:col-span-2">
+        <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div class="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                <h4 class="font-black text-slate-800 uppercase tracking-widest text-xs">Danh sách nền tảng</h4>
+                <span id="p-count" class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black">0 Nền tảng</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr>
+                            <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Dịch vụ</th>
+                            <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Account ID</th>
+                            <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Trạng thái</th>
+                            <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="p-list" class="divide-y divide-slate-50">
+                        <!-- Data -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Confirm Delete -->
+<div id="modal-delete" class="hidden fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-slate-900/60 p-4">
+    <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-8 text-center">
+        <div class="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="trash-2" class="w-8 h-8"></i>
+        </div>
+        <h3 class="text-xl font-black text-slate-900 mb-2">Xác nhận xóa?</h3>
+        <p class="text-sm text-slate-500 mb-8 font-medium">Hành động này không thể hoàn tác. Bạn có chắc muốn xóa dịch vụ này?</p>
+        <div class="flex gap-3">
+            <button onclick="closeDeleteModal()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Hủy</button>
+            <button id="btn-confirm-delete" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold">Xóa ngay</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allPlatforms = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadPlatforms();
+        lucide.createIcons();
+    });
+
+    async function loadPlatforms() {
+        try {
+            const res = await fetch("{{ url_for('admin.get_platforms') }}");
+            allPlatforms = await res.json();
+            renderPlatforms(allPlatforms);
+        } catch (e) { showToast("Lỗi tải dữ liệu", "error"); }
+    }
+
+    function renderPlatforms(data) {
+        const tbody = document.getElementById('p-list');
+        document.getElementById('p-count').textContent = `${data.length} Nền tảng`;
+        
+        tbody.innerHTML = data.map(p => `
+            <tr class="hover:bg-slate-50/50 transition-colors">
+                <td class="px-8 py-5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-primary">
+                            <i data-lucide="layers" class="w-5 h-5"></i>
+                        </div>
+                        <span class="font-bold text-slate-900">${p.name}</span>
+                    </div>
+                </td>
+                <td class="px-8 py-5 text-sm font-mono text-slate-400">${p.account_id || '—'}</td>
+                <td class="px-8 py-5">
+                    <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${p.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}">
+                        ${p.status === 'active' ? 'Hoạt động' : 'Tạm ngưng'}
+                    </span>
+                </td>
+                <td class="px-8 py-5 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                        <button onclick="editPlatform(${p.id})" class="p-2 text-slate-400 hover:text-primary transition-colors">
+                            <i data-lucide="edit-2" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="openDeleteModal(${p.id})" class="p-2 text-slate-400 hover:text-red-500 transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    function editPlatform(id) {
+        const p = allPlatforms.find(x => x.id === id);
+        if (!p) return;
+        document.getElementById('p-id').value = p.id;
+        document.getElementById('p-name').value = p.name;
+        document.getElementById('p-acc').value = p.account_id || '';
+        document.getElementById('p-status').value = p.status;
+        
+        document.getElementById('form-title').innerHTML = `<i data-lucide="edit" class="w-6 h-6 text-primary"></i> Cập nhật dịch vụ`;
+        document.getElementById('btn-submit').textContent = "Cập nhật ngay";
+        document.getElementById('status-group').classList.remove('hidden');
+        document.getElementById('btn-cancel').classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    function resetForm() {
+        document.getElementById('form-platform').reset();
+        document.getElementById('p-id').value = '';
+        document.getElementById('form-title').innerHTML = `<i data-lucide="plus-circle" class="w-6 h-6 text-primary"></i> Thêm dịch vụ mới`;
+        document.getElementById('btn-submit').textContent = "Lưu dịch vụ";
+        document.getElementById('status-group').classList.add('hidden');
+        document.getElementById('btn-cancel').classList.add('hidden');
+        lucide.createIcons();
+    }
+
+    async function submitPlatform() {
+        const id = document.getElementById('p-id').value;
+        const payload = {
+            name: document.getElementById('p-name').value,
+            account_id: document.getElementById('p-acc').value,
+            status: document.getElementById('p-status').value
+        };
+
+        const url = id ? `/admin/api/platforms/${id}/update` : '/admin/api/platforms/add';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message);
+                resetForm();
+                loadPlatforms();
+            } else showToast(data.message, "error");
+        } catch (e) { showToast("Lỗi xử lý!", "error"); }
+    }
+
+    let deleteId = null;
+    function openDeleteModal(id) {
+        deleteId = id;
+        document.getElementById('modal-delete').classList.remove('hidden');
+        document.getElementById('btn-confirm-delete').onclick = confirmDelete;
+    }
+    function closeDeleteModal() { document.getElementById('modal-delete').classList.add('hidden'); }
+
+    async function confirmDelete() {
+        try {
+            const res = await fetch(`/admin/api/platforms/${deleteId}/delete`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message);
+                closeDeleteModal();
+                loadPlatforms();
+            } else showToast(data.message, "error");
+        } catch (e) { showToast("Lỗi mạng!", "error"); }
+    }
+
+    function showToast(msg, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        const colors = { success: 'bg-emerald-500', error: 'bg-red-500' };
+        toast.className = `px-6 py-3 rounded-xl text-white font-medium shadow-xl transition-all animate-bounce ${colors[type]}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+</script>
+{% endblock %}

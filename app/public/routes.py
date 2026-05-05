@@ -7,9 +7,7 @@ public_bp = Blueprint('public', __name__)
 def index():
     return render_template('public/index.html')
 
-@public_bp.route('/pricing')
-def pricing():
-    return render_template('public/pricing.html')
+
 
 @public_bp.route('/contact', methods=['GET', 'POST'])
 def contact():
@@ -32,3 +30,14 @@ def login_page():
 @public_bp.route('/register')
 def register_page():
     return render_template('auth/register.html')
+
+@public_bp.route('/blog/<path:slug>')
+def blog_post(slug):
+    # Dữ liệu giả lập cho bài viết/video
+    post_data = {
+        'title': 'Bí mật chạy quảng cáo ra trăm đơn mỗi ngày',
+        'content': 'Đây là nội dung chi tiết của bài viết được hiển thị khi click từ menu hoặc trang chủ.',
+        'has_video': True,
+        'video_url': 'https://www.youtube.com/embed/dQw4w9WgXcQ' # sample video
+    }
+    return render_template('public/blog_post.html', post=post_data, slug=slug)

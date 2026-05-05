@@ -1,0 +1,378 @@
+{% extends "layouts/admin_base.html" %}
+
+{% block title %}Báo cáo - ADS Manager{% endblock %}
+{% block page_title %}Báo cáo & Thống kê{% endblock %}
+{% block page_subtitle %}Xem tổng hợp và xuất báo cáo chiến dịch quảng cáo theo kỳ.{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Filter Bar -->
+<div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 mb-8">
+    <div class="flex flex-wrap items-end gap-4">
+        <div class="flex-1 min-w-[160px]">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Từ ngày</label>
+            <input type="date" id="fromDate" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+        </div>
+        <div class="flex-1 min-w-[160px]">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Đến ngày</label>
+            <input type="date" id="toDate" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+        </div>
+        <div class="flex gap-3">
+            <!-- Preset buttons -->
+            <button onclick="setPreset(7)" class="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl border border-slate-200 transition-all">7 ngày</button>
+            <button onclick="setPreset(30)" class="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl border border-slate-200 transition-all">30 ngày</button>
+            <button onclick="setPreset(90)" class="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl border border-slate-200 transition-all">90 ngày</button>
+            <button onclick="loadReport()" id="btnView" class="px-6 py-2.5 bg-primary hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-sm shadow-primary/20 transition-all flex items-center gap-2">
+                <i data-lucide="search" class="w-4 h-4"></i> Xem báo cáo
+            </button>
+        </div>
+        <div class="flex gap-3 ml-auto">
+            <button onclick="exportExcel()" id="btnExcel" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-sm transition-all flex items-center gap-2">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Xuất Excel
+            </button>
+            <button onclick="exportPDF()" id="btnPDF" class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl shadow-sm transition-all flex items-center gap-2">
+                <i data-lucide="file-text" class="w-4 h-4"></i> Xuất PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="kpiRow">
+    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Số chiến dịch</p>
+        <div class="text-3xl font-extrabold text-slate-900" id="kpi-cams">—</div>
+    </div>
+    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Tổng ngân sách</p>
+        <div class="text-3xl font-extrabold text-slate-900" id="kpi-budget">—</div>
+    </div>
+    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Tổng chi tiêu</p>
+        <div class="text-3xl font-extrabold text-slate-900" id="kpi-spent">—</div>
+    </div>
+    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Tỷ lệ TB</p>
+        <div class="text-3xl font-extrabold text-slate-900" id="kpi-ratio">—</div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8" id="chartsRow">
+    <!-- Spending Trends Area Chart -->
+    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden col-span-1 lg:col-span-2">
+        <div class="px-8 py-5 border-b border-slate-50 flex justify-between items-center">
+            <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="trending-up" class="w-5 h-5 text-indigo-500"></i>
+                Xu hướng chi tiêu
+            </h3>
+        </div>
+        <div class="p-6">
+            <div id="reportSpendingChart" class="h-64"></div>
+        </div>
+    </div>
+
+    <!-- Platform Donut -->
+    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-8 py-5 border-b border-slate-50">
+            <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-5 h-5 text-primary"></i>
+                Phân bổ ngân sách theo nền tảng
+            </h3>
+        </div>
+        <div class="p-6">
+            <div id="reportDonut" class="h-64"></div>
+        </div>
+    </div>
+
+    <!-- Platform Table -->
+    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-8 py-5 border-b border-slate-50">
+            <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="bar-chart-2" class="w-5 h-5 text-emerald-500"></i>
+                Chi tiết theo nền tảng
+            </h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-slate-50 text-xs font-black uppercase tracking-widest text-slate-400">
+                        <th class="px-6 py-3 text-left">Nền tảng</th>
+                        <th class="px-6 py-3 text-right">Số CĐ</th>
+                        <th class="px-6 py-3 text-right">Ngân sách</th>
+                        <th class="px-6 py-3 text-right">Chi tiêu</th>
+                    </tr>
+                </thead>
+                <tbody id="platformBody" class="divide-y divide-slate-50">
+                    <tr><td colspan="4" class="text-center text-slate-400 py-10 text-sm">Chọn kỳ báo cáo và nhấn "Xem báo cáo"</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Table -->
+<div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+    <div class="px-8 py-5 border-b border-slate-50 flex justify-between items-center">
+        <h3 class="font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="table" class="w-5 h-5 text-slate-500"></i>
+            Chi tiết từng chiến dịch
+        </h3>
+        <span id="detailCount" class="text-xs text-slate-400 font-semibold">—</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-slate-50 text-xs font-black uppercase tracking-widest text-slate-400">
+                    <th class="px-4 py-3 text-left">#</th>
+                    <th class="px-4 py-3 text-left">Tên chiến dịch</th>
+                    <th class="px-4 py-3 text-left">Khách hàng</th>
+                    <th class="px-4 py-3 text-left">Nền tảng</th>
+                    <th class="px-4 py-3 text-right">Ngân sách</th>
+                    <th class="px-4 py-3 text-right">Đã chi</th>
+                    <th class="px-4 py-3 text-left">Tỷ lệ</th>
+                    <th class="px-4 py-3 text-left">Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody id="detailBody" class="divide-y divide-slate-50">
+                <tr><td colspan="8" class="text-center text-slate-400 py-12 text-sm">
+                    <div class="flex flex-col items-center gap-2 opacity-60">
+                        <i data-lucide="bar-chart" class="w-10 h-10"></i>
+                        Chọn kỳ báo cáo và nhấn "Xem báo cáo"
+                    </div>
+                </td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div id="toastBody" class="flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl text-white text-sm font-semibold max-w-sm">
+        <i id="toastIcon" data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+        <span id="toastMsg"></span>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Helpers ─────────────────────────────────────────────────────────────────
+const PLATFORM_COLORS = {
+    'Facebook':'#1877F2','Google':'#EA4335','TikTok':'#010101',
+    'Instagram':'#E1306C','YouTube':'#FF0000','Zalo':'#0068FF',
+};
+const STATUS_CSS = {
+    'Đang chạy': 'bg-emerald-50 text-emerald-700',
+    'Tạm dừng':  'bg-amber-50 text-amber-700',
+    'Kết thúc':  'bg-slate-100 text-slate-500',
+    'Nháp':      'bg-blue-50 text-blue-600',
+};
+
+function fmtMillion(v) {
+    if (v >= 1e9)  return (v/1e9).toFixed(1)+'B';
+    if (v >= 1e6)  return (v/1e6).toFixed(1)+'M';
+    if (v >= 1e3)  return (v/1e3).toFixed(0)+'K';
+    return Math.round(v).toLocaleString('vi-VN');
+}
+function fmtVND(v) { return new Intl.NumberFormat('vi-VN').format(Math.round(v)) + ' đ'; }
+
+function showToast(msg, type='success') {
+    const el   = document.getElementById('toast');
+    const body = document.getElementById('toastBody');
+    const icon = document.getElementById('toastIcon');
+    document.getElementById('toastMsg').textContent = msg;
+    body.className = `flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl text-white text-sm font-semibold max-w-sm ${type==='success'?'bg-emerald-500':'bg-red-500'}`;
+    icon.setAttribute('data-lucide', type==='success' ? 'check-circle' : 'alert-circle');
+    lucide.createIcons();
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 3500);
+}
+
+// ── Date helpers ─────────────────────────────────────────────────────────────
+function setPreset(days) {
+    const to   = new Date();
+    const from = new Date(); from.setDate(to.getDate() - days + 1);
+    document.getElementById('fromDate').value = from.toISOString().split('T')[0];
+    document.getElementById('toDate').value   = to.toISOString().split('T')[0];
+}
+
+// Default: 30 ngày
+setPreset(30);
+
+// ── State ────────────────────────────────────────────────────────────────────
+let donutChart = null;
+let spendingChart = null;
+let lastData   = null;
+
+// ── Load Report ──────────────────────────────────────────────────────────────
+async function loadReport() {
+    const from = document.getElementById('fromDate').value;
+    const to   = document.getElementById('toDate').value;
+    if (!from || !to) { showToast('Vui lòng chọn kỳ báo cáo!', 'error'); return; }
+
+    const btn = document.getElementById('btnView');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Đang tải...';
+    lucide.createIcons();
+
+    try {
+        const res  = await fetch(`/admin/reports/api/summary?from=${from}&to=${to}`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Lỗi tải dữ liệu');
+        lastData = data;
+
+        renderKPI(data.summary);
+        renderPlatformTable(data.platforms);
+        renderDetailTable(data.details);
+        renderDonut(data.platforms);
+        await loadSpendingChart(from, to);
+        showToast('Đã tải báo cáo thành công!');
+    } catch(e) {
+        showToast('Lỗi: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="search" class="w-4 h-4"></i> Xem báo cáo';
+        lucide.createIcons();
+    }
+}
+
+function renderKPI(s) {
+    document.getElementById('kpi-cams').textContent   = s.total_campaigns;
+    document.getElementById('kpi-budget').textContent = fmtMillion(s.total_budget);
+    document.getElementById('kpi-spent').textContent  = fmtMillion(s.total_spent);
+    document.getElementById('kpi-ratio').textContent  = s.avg_ratio + '%';
+}
+
+function renderPlatformTable(platforms) {
+    const tbody = document.getElementById('platformBody');
+    if (!platforms.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-6">Chưa có dữ liệu</td></tr>';
+        return;
+    }
+    tbody.innerHTML = platforms.map((p, i) => `
+    <tr class="hover:bg-slate-50 transition-colors">
+        <td class="px-6 py-3 font-semibold text-slate-700 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${PLATFORM_COLORS[p.platform]||'#6366f1'}"></span>
+            ${p.platform}
+        </td>
+        <td class="px-6 py-3 text-right text-slate-600 font-medium">${p.cnt}</td>
+        <td class="px-6 py-3 text-right text-slate-600">${fmtVND(p.budget)}</td>
+        <td class="px-6 py-3 text-right font-bold text-slate-800">${fmtVND(p.spent)}</td>
+    </tr>`).join('');
+}
+
+function renderDetailTable(details) {
+    document.getElementById('detailCount').textContent = details.length + ' chiến dịch';
+    const tbody = document.getElementById('detailBody');
+    if (!details.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-400 py-8">Không có dữ liệu</td></tr>';
+        return;
+    }
+    tbody.innerHTML = details.map((d, i) => {
+        const ratio    = Math.min(d.spent_pct, 100);
+        const barColor = ratio >= 90 ? '#EF4444' : ratio >= 80 ? '#F59E0B' : '#10B981';
+        const css      = STATUS_CSS[d.status] || 'bg-slate-100 text-slate-500';
+        return `
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-4 py-3 text-slate-400 font-bold text-xs">${i+1}</td>
+            <td class="px-4 py-3">
+                <p class="font-semibold text-slate-800 text-sm">${d.name}</p>
+                <p class="text-xs text-slate-400">${d.start_date} → ${d.end_date}</p>
+            </td>
+            <td class="px-4 py-3 text-sm text-slate-600">${d.customer_name}</td>
+            <td class="px-4 py-3">
+                <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">${d.platform}</span>
+            </td>
+            <td class="px-4 py-3 text-right text-sm text-slate-600">${fmtVND(d.budget)}</td>
+            <td class="px-4 py-3 text-right text-sm font-bold text-slate-800">${fmtVND(d.spent)}</td>
+            <td class="px-4 py-3 min-w-[120px]">
+                <div class="flex items-center gap-2">
+                    <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div class="h-1.5 rounded-full" style="width:${ratio}%;background:${barColor}"></div>
+                    </div>
+                    <span class="text-xs font-bold text-slate-500">${ratio.toFixed(1)}%</span>
+                </div>
+            </td>
+            <td class="px-4 py-3">
+                <span class="text-xs font-bold px-2.5 py-1 rounded-full ${css}">${d.status}</span>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function renderDonut(platforms) {
+    const el = document.getElementById('reportDonut');
+    if (donutChart) { donutChart.destroy(); donutChart = null; }
+
+    const labels = platforms.map(p => p.platform);
+    const values = platforms.map(p => p.budget);
+    const colors = labels.map(l => PLATFORM_COLORS[l] || '#6366f1');
+
+    if (!labels.length) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 text-sm">Chưa có dữ liệu</div>';
+        return;
+    }
+
+    donutChart = new ApexCharts(el, {
+        chart: { type: 'donut', height: 256, fontFamily: 'Inter, sans-serif', toolbar: { show: false } },
+        series: values, labels: labels, colors: colors,
+        legend: { position: 'bottom', fontSize: '12px', fontWeight: 600, labels: { colors: '#475569' } },
+        plotOptions: { pie: { donut: { size: '65%', labels: { show: true,
+            total: { show: true, label: 'Tổng', formatter: w => fmtMillion(w.globals.seriesTotals.reduce((a,b)=>a+b,0)) }
+        }}}},
+        tooltip: { y: { formatter: v => fmtVND(v) } },
+        dataLabels: { enabled: false },
+    });
+    donutChart.render();
+}
+
+async function loadSpendingChart(from, to) {
+    try {
+        const res = await fetch(`/admin/reports/api/chart/spending-trend?from=${from}&to=${to}`);
+        const data = await res.json();
+        
+        const el = document.getElementById('reportSpendingChart');
+        if (spendingChart) { spendingChart.destroy(); spendingChart = null; }
+
+        const labels = data.labels?.length ? data.labels : ['Chưa có dữ liệu'];
+        const values = data.data?.length   ? data.data   : [0];
+
+        spendingChart = new ApexCharts(el, {
+            chart: { type: 'area', height: 256, fontFamily: 'Inter, sans-serif', toolbar: { show: false } },
+            series: [{ name: 'Chi phí (VNĐ)', data: values }],
+            xaxis:  { categories: labels, labels: { style: { fontSize: '11px', colors: '#94a3b8' } } },
+            yaxis:  { labels: { formatter: v => fmtMillion(v), style: { colors: '#94a3b8', fontSize: '11px' } } },
+            fill:   { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 100] } },
+            stroke: { curve: 'smooth', width: 3, colors: ['#4F46E5'] },
+            colors: ['#4F46E5'],
+            markers: { size: 4, colors: ['#4F46E5'], strokeWidth: 2, strokeColors: '#fff' },
+            tooltip: { y: { formatter: v => fmtVND(v) } },
+        });
+        spendingChart.render();
+    } catch(e) {
+        console.error("Lỗi tải biểu đồ chi tiêu:", e);
+    }
+}
+
+// ── Export ───────────────────────────────────────────────────────────────────
+function buildExportUrl(type) {
+    const from = document.getElementById('fromDate').value || '';
+    const to   = document.getElementById('toDate').value   || '';
+    return `/admin/reports/api/export/${type}?from=${from}&to=${to}`;
+}
+
+function exportExcel() {
+    window.location.href = buildExportUrl('excel');
+    showToast('Đang chuẩn bị file Excel...');
+}
+
+function exportPDF() {
+    window.location.href = buildExportUrl('pdf');
+    showToast('Đang chuẩn bị file PDF...');
+}
+</script>
+{% endblock %}

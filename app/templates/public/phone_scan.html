@@ -1,0 +1,168 @@
+{% extends "layouts/public_base.html" %}
+
+{% block title %}Dịch vụ Quét Số Điện Thoại - HTDADS{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-white py-16 md:py-24">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <!-- Left Content -->
+            <div>
+                <p class="text-[#FF5722] font-semibold text-sm uppercase mb-2">Khai phá dữ liệu</p>
+                <h1 class="text-4xl md:text-5xl font-black text-brandred uppercase leading-tight mb-4">
+                    GIẢI PHÁP QUÉT SỐ ĐIỆN THOẠI KHÁCH HÀNG
+                </h1>
+                <p class="text-xl font-bold text-brandblue mb-8">
+                    Chuyển đổi dữ liệu mạng xã hội thành khách hàng tiềm năng
+                </p>
+                
+                <ul class="space-y-4 mb-10">
+                    <li class="flex items-start gap-3">
+                        <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brandblue flex-shrink-0"></div>
+                        <span class="text-slate-700 text-[15px]">Tốc độ thu thập cực nhanh và chính xác.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brandblue flex-shrink-0"></div>
+                        <span class="text-slate-700 text-[15px]">Dữ liệu được làm sạch và phân loại rõ ràng.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brandblue flex-shrink-0"></div>
+                        <span class="text-slate-700 text-[15px]">Bảo mật tuyệt đối, an toàn hệ thống.</span>
+                    </li>
+                </ul>
+
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                    <a href="{{ url_for('public.contact') }}" class="bg-brandblue hover:bg-blue-900 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all text-sm flex items-center gap-2">
+                        Đăng ký ngay <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </a>
+                    
+                    <div class="flex items-center gap-3 bg-white border border-gray-200 py-2 px-5 rounded-full shadow-sm">
+                        <div class="bg-blue-100 p-2 rounded-md">
+                            <i data-lucide="headphones" class="w-5 h-5 text-brandblue"></i>
+                        </div>
+                        <div>
+                            <p class="text-brandred font-bold text-lg leading-tight">0888.637.333</p>
+                            <p class="text-xs text-slate-500">Hỗ trợ khách hàng 24/7</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Illustration -->
+            <div class="relative">
+                <img src="{{ url_for('static', filename='images/services/hero_phone_scan.png') }}" alt="Phone Scanning Solution" class="w-full h-auto object-contain max-h-[500px]">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="bg-slate-50 py-16">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <p class="text-slate-500 text-sm mb-2">Sức mạnh công nghệ</p>
+        <h2 class="text-2xl md:text-3xl font-bold text-brandred uppercase mb-16">
+            TẠI SAO CHỌN DỊCH VỤ CỦA CHÚNG TÔI
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-4xl mx-auto">
+            <div class="flex flex-col items-center">
+                <div class="h-20 flex items-center justify-center mb-6">
+                    <i data-lucide="shield-check" class="w-16 h-16 text-brandblue"></i>
+                </div>
+                <h3 class="text-4xl font-black text-brandblue mb-2">99%</h3>
+                <p class="text-slate-600 text-sm">Tỷ lệ chính xác của dữ liệu trích xuất</p>
+            </div>
+            
+            <div class="flex flex-col items-center relative">
+                <div class="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 w-px h-24 bg-gray-200 -translate-x-6"></div>
+                <div class="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 w-px h-24 bg-gray-200 translate-x-6"></div>
+                
+                <div class="h-20 flex items-center justify-center mb-6">
+                    <i data-lucide="zap" class="w-16 h-16 text-brandblue"></i>
+                </div>
+                <h3 class="text-4xl font-black text-brandblue mb-2">1s</h3>
+                <p class="text-slate-600 text-sm">Thời gian phản hồi để trích xuất 1 liên hệ</p>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <div class="h-20 flex items-center justify-center mb-6">
+                    <i data-lucide="database" class="w-16 h-16 text-brandblue"></i>
+                </div>
+                <h3 class="text-4xl font-black text-brandblue mb-2">10k+</h3>
+                <p class="text-slate-600 text-sm">Khối lượng dữ liệu khả năng xử lý mỗi ngày</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Details Section -->
+<section class="bg-white py-20">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-20">
+            <p class="text-slate-500 text-sm mb-2">Ứng dụng thực tế</p>
+            <h2 class="text-2xl md:text-3xl font-bold text-brandred uppercase">
+                BỨT PHÁ HIỆU QUẢ TELESALES
+            </h2>
+        </div>
+
+        <div class="space-y-24 max-w-5xl mx-auto">
+            <!-- Item 1 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <img src="{{ url_for('static', filename='images/services/phone_scan_1.png') }}" alt="Khai thác data" class="w-full h-auto object-contain max-h-[350px]">
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-brandred uppercase mb-6 leading-relaxed">
+                        1. KHAI THÁC DATA KHÁCH HÀNG TỪ MẠNG XÃ HỘI
+                    </h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start gap-3">
+                            <i data-lucide="check" class="w-5 h-5 text-brandblue flex-shrink-0 mt-0.5"></i>
+                            <span class="text-slate-600 text-sm leading-relaxed">
+                                Công cụ cho phép tự động phân tích và trích xuất thông tin liên lạc công khai từ các bài viết, bình luận, và hồ sơ trên đa nền tảng mạng xã hội.
+                            </span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i data-lucide="check" class="w-5 h-5 text-brandblue flex-shrink-0 mt-0.5"></i>
+                            <span class="text-slate-600 text-sm leading-relaxed">
+                                Xây dựng tệp khách hàng tiềm năng khổng lồ một cách nhanh chóng mà không cần tốn chi phí cho quảng cáo đắt đỏ.
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Item 2 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center flex-col-reverse md:flex-row">
+                <div class="order-2 md:order-1">
+                    <h3 class="text-xl font-bold text-brandred uppercase mb-6 leading-relaxed">
+                        2. NÂNG CAO HIỆU SUẤT CHO ĐỘI NGŨ TELESALES
+                    </h3>
+                    <p class="text-slate-600 text-sm leading-relaxed text-justify">
+                        Cung cấp cho đội ngũ telesales một danh sách khách hàng chất lượng cao đã qua sàng lọc. Giảm bớt thời gian gọi điện đến số thuê bao rác, tập trung tối đa thời gian để tư vấn chốt sale những khách hàng thực sự có nhu cầu tương tác.
+                    </p>
+                </div>
+                <div class="order-1 md:order-2">
+                    <img src="{{ url_for('static', filename='images/services/phone_scan_2.png') }}" alt="Nâng cao hiệu suất telesales" class="w-full h-auto object-contain max-h-[350px]">
+                </div>
+            </div>
+
+            <!-- Item 3 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <img src="{{ url_for('static', filename='images/services/phone_scan_3.png') }}" alt="Bảo mật dữ liệu" class="w-full h-auto object-contain max-h-[350px]">
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-brandred uppercase mb-6 leading-relaxed">
+                        3. BẢO MẬT DỮ LIỆU VÀ AN TOÀN HỆ THỐNG
+                    </h3>
+                    <p class="text-slate-600 text-sm leading-relaxed text-justify">
+                        Quy trình trích xuất và xử lý dữ liệu được mã hóa và bảo mật nhiều lớp. Chúng tôi cam kết tuyệt đối quyền riêng tư và chỉ khai thác các luồng thông tin được phép công khai, tuân thủ các nguyên tắc cộng đồng và chính sách nền tảng.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

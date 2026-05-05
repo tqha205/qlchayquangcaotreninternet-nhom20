@@ -1,0 +1,233 @@
+{% extends "layouts/public_base.html" %}
+
+{% block title %}Dịch vụ Quảng cáo Zalo Ads - HTDADS{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-white py-16 md:py-24">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <!-- Left Content -->
+            <div>
+                <p class="text-[#FF5722] font-semibold text-sm uppercase mb-2">Phát triển</p>
+                <h1 class="text-4xl md:text-5xl font-black text-brandred uppercase leading-tight mb-4">
+                    Zalo MARKETING HIỆU QUẢ
+                </h1>
+                <p class="text-xl font-bold text-brandblue mb-8">
+                    Đối tác chính thức của Zalo tại Việt Nam
+                </p>
+                
+                <ul class="space-y-4 mb-10">
+                    <li class="flex items-start gap-3">
+                        <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brandblue flex-shrink-0"></div>
+                        <span class="text-slate-700 text-[15px]">Quảng cáo Zalo liên tục, hiệu quả.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brandblue flex-shrink-0"></div>
+                        <span class="text-slate-700 text-[15px]">Thiết kế & Chăm sóc Zalo OA chuyên nghiệp.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brandblue flex-shrink-0"></div>
+                        <span class="text-slate-700 text-[15px]">Doanh số gia tăng đáng kể.</span>
+                    </li>
+                </ul>
+
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                    <a href="{{ url_for('public.contact') }}" class="bg-brandblue hover:bg-blue-900 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all text-sm flex items-center gap-2">
+                        Đăng ký ngay <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </a>
+                    
+                    <div class="flex items-center gap-3 bg-white border border-gray-200 py-2 px-5 rounded-full shadow-sm">
+                        <div class="bg-blue-100 p-2 rounded-md">
+                            <i data-lucide="headphones" class="w-5 h-5 text-brandblue"></i>
+                        </div>
+                        <div>
+                            <p class="text-brandred font-bold text-lg leading-tight">0888.637.333</p>
+                            <p class="text-xs text-slate-500">Hỗ trợ khách hàng 24/7</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Illustration -->
+            <div class="relative">
+                <img src="{{ url_for('static', filename='images/services/hero_fb.png') }}" alt="Zalo Marketing" class="w-full h-auto object-contain max-h-[500px]">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="bg-slate-50 py-16">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <p class="text-slate-500 text-sm mb-2">MaxAds mang đến</p>
+        <h2 class="text-2xl md:text-3xl font-bold text-brandred uppercase mb-16">
+            LÝ DO BẠN CẦN TRIỂN KHAI QUẢNG CÁO Zalo
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-4xl mx-auto">
+            <div class="flex flex-col items-center">
+                <div class="h-20 flex items-center justify-center mb-6">
+                    <i data-lucide="users" class="w-16 h-16 text-brandblue"></i>
+                </div>
+                <h3 class="text-4xl font-black text-brandblue mb-2">61 triệu</h3>
+                <p class="text-slate-600 text-sm">Số lượng người dùng Zalo tại Việt Nam</p>
+            </div>
+            
+            <div class="flex flex-col items-center relative">
+                <!-- Divider line for desktop -->
+                <div class="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 w-px h-24 bg-gray-200 -translate-x-6"></div>
+                <div class="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 w-px h-24 bg-gray-200 translate-x-6"></div>
+                
+                <div class="h-20 flex items-center justify-center mb-6">
+                    <i data-lucide="clock" class="w-16 h-16 text-brandblue"></i>
+                </div>
+                <h3 class="text-4xl font-black text-brandblue mb-2">2 giờ 22 phút</h3>
+                <p class="text-slate-600 text-sm">Thời gian truy cập trung bình mỗi ngày</p>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <div class="h-20 flex items-center justify-center mb-6">
+                    <i data-lucide="smartphone" class="w-16 h-16 text-brandblue"></i>
+                </div>
+                <h3 class="text-4xl font-black text-brandblue mb-2">89%</h3>
+                <p class="text-slate-600 text-sm">Tỷ lệ người dùng hoạt động thường xuyên</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Details Section -->
+<section class="bg-white py-20">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-20">
+            <p class="text-slate-500 text-sm mb-2">Quảng cáo Zalo để làm gì</p>
+            <h2 class="text-2xl md:text-3xl font-bold text-brandred uppercase">
+                HÃY ĐỂ Zalo KẾT NỐI SẢN PHẨM CỦA BẠN VỚI KHÁCH HÀNG
+            </h2>
+        </div>
+
+        <div class="space-y-24 max-w-5xl mx-auto">
+            <!-- Item 1 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <img src="{{ url_for('static', filename='images/services/fb_marketing_1.png') }}" alt="Nền tảng marketing" class="w-full h-auto object-contain max-h-[350px]">
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-brandred uppercase mb-6 leading-relaxed">
+                        1. Zalo: NỀN TẢNG MARKETING ONLINE TIỀM NĂNG CHO CÁC DOANH NGHIỆP
+                    </h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start gap-3">
+                            <i data-lucide="check" class="w-5 h-5 text-brandblue flex-shrink-0 mt-0.5"></i>
+                            <span class="text-slate-600 text-sm leading-relaxed">
+                                Hiện tại, tổng lượng khách hàng trên toàn cầu đang truy cập Zalo lên tới 2,8 tỷ người sử dụng và hơn 61 triệu người dùng tại Việt Nam.
+                            </span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i data-lucide="check" class="w-5 h-5 text-brandblue flex-shrink-0 mt-0.5"></i>
+                            <span class="text-slate-600 text-sm leading-relaxed">
+                                Đặc biệt, trung bình mỗi người dùng khoảng 18 - 34 tuổi, độ tuổi có khả năng chi trả và mua sắm cao nhất.
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Item 2 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center flex-col-reverse md:flex-row">
+                <div class="order-2 md:order-1">
+                    <h3 class="text-xl font-bold text-brandred uppercase mb-6 leading-relaxed">
+                        2. TẬP TRUNG ĐÚNG ĐỐI TƯỢNG MÀ BẠN MUỐN NHẮM ĐẾN
+                    </h3>
+                    <p class="text-slate-600 text-sm leading-relaxed text-justify">
+                        Trong mỗi chiến dịch quảng cáo, bạn muốn hướng tới đối tượng khách hàng mục tiêu nào, bao nhiêu tuổi, sở thích, giới tính thế nào... Tất cả điều đó sẽ được thu hẹp lại để Zalo Ads làm cầu nối giúp bạn và khách hàng tiềm năng đến gần nhau hơn chỉ sau 1 cú click.
+                    </p>
+                </div>
+                <div class="order-1 md:order-2">
+                    <img src="{{ url_for('static', filename='images/services/fb_marketing_2.png') }}" alt="Tập trung đúng đối tượng" class="w-full h-auto object-contain max-h-[350px]">
+                </div>
+            </div>
+
+            <!-- Item 3 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <img src="{{ url_for('static', filename='images/services/fb_marketing_3.png') }}" alt="Mức độ lan truyền" class="w-full h-auto object-contain max-h-[350px]">
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-brandred uppercase mb-6 leading-relaxed">
+                        3. MỨC ĐỘ LAN TRUYỀN THÔNG ĐIỆP QUẢNG CÁO NHANH, RỘNG
+                    </h3>
+                    <p class="text-slate-600 text-sm leading-relaxed text-justify">
+                        Chỉ cần một thao tác đơn giản là khách hàng đã có thể nhìn thấy quảng cáo của bạn. Thông qua các hành động tương tác như like, share, comment, hình ảnh sản phẩm của bạn có thể xuất hiện quảng cáo đến người quen của họ nhanh chóng trên Zalo.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Fee Calculation Info Section -->
+<section class="bg-slate-50 py-16">
+    <div class="max-w-4xl mx-auto px-4 text-center">
+        <h2 class="text-2xl font-bold text-slate-800 mb-4">Cách tính phí Quảng cáo Zalo</h2>
+        <p class="text-slate-600 text-sm leading-relaxed mb-6">
+            Bạn sẽ chỉ phải trả tiền khi quảng cáo của bạn được người dùng click vào, lượt like, chia sẻ hay tương tác truy cập vào website của bạn. Mức giá chi phí quảng cáo thì quảng cáo của bạn càng có cơ hội xuất hiện nhiều hơn trên Zalo.
+        </p>
+        <a href="{{ url_for('public.contact') }}" class="inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-8 rounded shadow-md transition-colors text-sm uppercase">
+            Đăng ký ngay
+        </a>
+    </div>
+</section>
+
+<!-- Zalo Ads Forms Section -->
+<section class="py-16 bg-white">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+            <h2 class="text-2xl font-bold text-slate-800">Zalo Ads tính phí theo hình thức sau</h2>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <!-- CPC -->
+            <div class="border border-red-200 rounded-lg p-8 relative hover:shadow-xl transition-shadow text-center flex flex-col items-center">
+                <div class="w-16 h-16 rounded-full border border-red-200 flex items-center justify-center text-brandred mb-4">
+                    <i data-lucide="mouse-pointer-click" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-[17px] font-bold text-brandred mb-1">Hình thức CPC (Cost Per Click)</h3>
+                <p class="text-slate-800 font-bold mb-4 text-sm">Là dạng quảng cáo tính phí theo click (nhấp chuột).</p>
+                <p class="text-slate-600 text-sm leading-relaxed mb-6 text-justify">
+                    Bạn sẽ đưa ra một mức giá thầu cho mỗi click. Bạn sẽ bị trừ tiền khi người dùng click vào quảng cáo của bạn. Mức giá cho mỗi click phụ thuộc vào mức độ cạnh tranh của thị trường thời điểm chạy quảng cáo.
+                </p>
+                <a href="{{ url_for('public.contact') }}" class="border-2 border-brandblue text-brandblue hover:bg-brandblue hover:text-white font-bold py-2 px-6 rounded-full text-[13px] transition-colors mb-6 mt-auto">
+                    LIÊN HỆ BÁO GIÁ NGAY
+                </a>
+                <div class="w-full h-2 bg-gradient-to-r from-blue-100 to-teal-100 rounded-t-full mb-2"></div>
+                <p class="text-[11px] text-red-500 italic mt-auto">
+                    *Phí dịch vụ 10%, Quản lý chiến dịch, Tối ưu quảng cáo giúp giảm thiểu chi phí.
+                </p>
+            </div>
+
+            <!-- CPM -->
+            <div class="border border-red-200 rounded-lg p-8 relative hover:shadow-xl transition-shadow text-center flex flex-col items-center">
+                <div class="w-16 h-16 rounded-full border border-red-200 flex items-center justify-center text-brandred mb-4">
+                    <i data-lucide="eye" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-[17px] font-bold text-brandred mb-1">Hình thức CPM (Cost Per Mille)</h3>
+                <p class="text-slate-800 font-bold mb-4 text-sm">Là dạng quảng cáo tính phí theo lượt hiển thị.</p>
+                <p class="text-slate-600 text-sm leading-relaxed mb-6 text-justify">
+                    Cụ thể Zalo sẽ tính phí của bạn dựa trên mỗi 1000 lượt hiển thị. Nghĩa là không cần biết người dùng có click vào quảng cáo hay không, chỉ cần quảng cáo xuất hiện trên bảng tin của người dùng 1000 lần thì bạn sẽ phải trả một khoản phí cho Zalo.
+                </p>
+                <a href="{{ url_for('public.contact') }}" class="border-2 border-brandblue text-brandblue hover:bg-brandblue hover:text-white font-bold py-2 px-6 rounded-full text-[13px] transition-colors mb-6 mt-auto">
+                    LIÊN HỆ BÁO GIÁ NGAY
+                </a>
+                <div class="w-full h-2 bg-gradient-to-r from-blue-100 to-teal-100 rounded-t-full mb-2"></div>
+                <p class="text-[11px] text-red-500 italic mt-auto">
+                    *Phí dịch vụ 10%, Quản lý chiến dịch, Tối ưu quảng cáo giúp giảm thiểu chi phí.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+{% endblock %}

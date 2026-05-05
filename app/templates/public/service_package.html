@@ -1,0 +1,117 @@
+{% extends "layouts/public_base.html" %}
+
+{% block content %}
+<!-- Red Header Banner -->
+<div class="bg-brandred text-white py-6">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <!-- Search -->
+            <div class="w-full md:w-1/3">
+                <div class="relative max-w-sm">
+                    <input type="text" placeholder="Tìm kiếm..." class="w-full pl-6 pr-12 py-2.5 rounded-full text-slate-900 outline-none">
+                    <button class="absolute right-1 top-1 bottom-1 w-9 bg-brandred flex items-center justify-center rounded-full text-white cursor-pointer hover:bg-red-700 transition">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Title & Breadcrumb -->
+            <div class="w-full md:w-1/3 text-center">
+                <h1 class="text-2xl font-bold mb-1">{{ title }}</h1>
+                <div class="text-xs text-white/80 uppercase">
+                    <a href="{{ url_for('public.index') }}" class="hover:text-white">Trang chủ</a> / {{ title }}
+                </div>
+            </div>
+
+            <!-- Sort Dropdown -->
+            <div class="w-full md:w-1/3 flex md:justify-end">
+                <select class="bg-white/20 border border-white/30 text-white text-sm rounded-md px-4 py-2.5 outline-none hover:bg-white/30 transition-colors w-full md:w-auto appearance-none cursor-pointer">
+                    <option class="text-slate-900">Thứ tự mặc định</option>
+                    <option class="text-slate-900">Mới nhất</option>
+                    <option class="text-slate-900">Giá từ thấp đến cao</option>
+                    <option class="text-slate-900">Giá từ cao đến thấp</option>
+                </select>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Area -->
+<div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <!-- Intro Text (Only for PRO/BUSINESS, similar to screenshot 2) -->
+    {% if 'pro' in package_type or 'business' in package_type %}
+    <div class="max-w-4xl mb-10">
+        <h2 class="text-xl font-bold text-brandred mb-4">Thiết kế website {{ title|lower }}</h2>
+        <p class="text-sm text-slate-600 leading-relaxed mb-4">Dịch vụ <strong>thiết kế website</strong> chuyên nghiệp, uy tín hàng đầu hiện nay chuyên cung cấp các giải pháp tạo website bán hàng, giới thiệu doanh nghiệp, sản phẩm theo yêu cầu và chuẩn SEO phù hợp với mọi lĩnh vực ngành nghề. Website hiển thị sản phẩm/dịch vụ, thông tin doanh nghiệp rõ ràng và đẹp mắt. Tạo ấn tượng về sự chỉn chu, chuyên nghiệp ngay từ lần đầu khách ghé thăm.</p>
+        <p class="text-sm text-slate-600 leading-relaxed">Công ty có đội ngũ IT năng động, tư duy sáng tạo, nhiều năm kinh nghiệm trong lĩnh vực công nghệ thông tin. HTDADS luôn lắng nghe và thấu hiểu những khó khăn của từng khách hàng, từ đó công ty sẽ đưa ra các giải pháp tối ưu nhất giúp khách hàng hoàn toàn yên tâm về chất lượng với chi phí rẻ nhất.</p>
+    </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="flex gap-4 mb-10 border-b border-gray-200 pb-6">
+        <div class="relative w-64">
+            <select class="w-full appearance-none border border-gray-300 rounded-md px-4 py-2.5 text-sm outline-none focus:border-brandblue pr-10 cursor-pointer">
+                <option>Chọn theo gói</option>
+                <option {% if 'basic' in package_type %}selected{% endif %}>Gói BASIC</option>
+                <option {% if 'pro' in package_type %}selected{% endif %}>Gói PRO</option>
+                <option {% if 'business' in package_type %}selected{% endif %}>Gói BUSINESS</option>
+            </select>
+            <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-3 text-gray-400 pointer-events-none"></i>
+        </div>
+        
+        <div class="relative w-64">
+            <select class="w-full appearance-none border border-gray-300 rounded-md px-4 py-2.5 text-sm outline-none focus:border-brandblue pr-10 cursor-pointer">
+                <option>Chọn theo ngành hàng</option>
+                <option>Website bất động sản</option>
+                <option>Website mỹ phẩm</option>
+                <option>Website công nghệ</option>
+                <option>Website du lịch</option>
+            </select>
+            <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-3 text-gray-400 pointer-events-none"></i>
+        </div>
+    </div>
+
+    <!-- Product Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {% set items = [
+            {'img': 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', 'name': 'Website bất động sản – BDS01', 'slug': 'website-bat-dong-san-bds01'},
+            {'img': 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', 'name': 'Website bất động sản – BDS02', 'slug': 'website-bat-dong-san-bds02'},
+            {'img': 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', 'name': 'Website bất động sản – BDS03', 'slug': 'website-bat-dong-san-bds03'},
+            {'img': 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', 'name': 'Website công nghệ – CN06', 'slug': 'website-cong-nghe-cn06'},
+            {'img': 'https://images.unsplash.com/photo-1542362567-b07e54358753?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', 'name': 'Website công nghệ – CN07', 'slug': 'website-cong-nghe-cn07'},
+            {'img': 'https://images.unsplash.com/photo-1504608524841-42ce6f10a041?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', 'name': 'Website công nghệ – CN09', 'slug': 'website-cong-nghe-cn09'},
+            {'img': 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', 'name': 'Website công nghệ – CN10', 'slug': 'website-cong-nghe-cn10'},
+            {'img': 'https://images.unsplash.com/photo-1556910103-1c02745a8728?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', 'name': 'Website đồ gia dụng – ĐGD07', 'slug': 'website-do-gia-dung-dgd07'}
+        ] %}
+        
+        {% for item in items %}
+        <!-- Product Card -->
+        <div class="group border border-gray-200 rounded-xl overflow-hidden hover:shadow-xl transition-shadow bg-white flex flex-col">
+            <!-- Image Area -->
+            <div class="relative h-64 overflow-hidden border-b border-gray-100">
+                <img src="{{ item.img }}" alt="{{ item.name }}" class="w-full h-full object-cover">
+                
+                <!-- Badge (Top Left) -->
+                <div class="absolute top-3 left-3 flex items-center gap-1 {{ badge_color }} px-3 py-1 rounded-full text-white text-[11px] font-bold shadow-md z-10 border border-white/20">
+                    <i data-lucide="award" class="w-3 h-3"></i> {{ badge_label }}
+                </div>
+                
+                <!-- Hover Overlay -->
+                <div class="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <a href="{{ url_for('public.theme_detail', theme_slug=item.slug) }}" class="px-6 py-2 border border-white text-white font-bold text-sm rounded hover:bg-white hover:text-black transition-colors w-32 text-center uppercase">Chi tiết</a>
+                    <a href="#" class="px-6 py-2 bg-brandred text-white font-bold text-sm rounded hover:bg-red-700 transition-colors w-32 text-center uppercase border border-brandred">Xem Demo</a>
+                </div>
+            </div>
+            
+            <!-- Content Area -->
+            <div class="p-4 bg-white flex-1 flex flex-col justify-center">
+                <h3 class="font-bold text-sm text-slate-800 mb-2 truncate" title="{{ item.name }}">{{ item.name }}</h3>
+                <div class="text-brandred font-bold text-[13px]">{{ price_tag }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

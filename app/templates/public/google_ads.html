@@ -1,0 +1,168 @@
+{% extends "layouts/public_base.html" %}
+
+{% block title %}Dịch vụ Quảng cáo Google Ads - HTDADS{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-white py-16 md:py-24">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <!-- Left Content -->
+            <div>
+                <p class="text-[#FF5722] font-semibold text-sm uppercase mb-2">Đột phá doanh thu</p>
+                <h1 class="text-4xl md:text-5xl font-black text-brandred uppercase leading-tight mb-4">
+                    QUẢNG CÁO GOOGLE TỐI ƯU CHI PHÍ
+                </h1>
+                <p class="text-xl font-bold text-brandblue mb-8">
+                    Đối tác phân phối quảng cáo chính thức
+                </p>
+                
+                <ul class="space-y-4 mb-10">
+                    <li class="flex items-start gap-3">
+                        <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brandblue flex-shrink-0"></div>
+                        <span class="text-slate-700 text-[15px]">Tiếp cận khách hàng có nhu cầu thực sự.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brandblue flex-shrink-0"></div>
+                        <span class="text-slate-700 text-[15px]">Kiểm soát ngân sách chặt chẽ, minh bạch.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brandblue flex-shrink-0"></div>
+                        <span class="text-slate-700 text-[15px]">Tối ưu hóa tỷ lệ chuyển đổi nhanh chóng.</span>
+                    </li>
+                </ul>
+
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                    <a href="{{ url_for('public.contact') }}" class="bg-brandblue hover:bg-blue-900 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all text-sm flex items-center gap-2">
+                        Đăng ký ngay <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </a>
+                    
+                    <div class="flex items-center gap-3 bg-white border border-gray-200 py-2 px-5 rounded-full shadow-sm">
+                        <div class="bg-blue-100 p-2 rounded-md">
+                            <i data-lucide="headphones" class="w-5 h-5 text-brandblue"></i>
+                        </div>
+                        <div>
+                            <p class="text-brandred font-bold text-lg leading-tight">0888.637.333</p>
+                            <p class="text-xs text-slate-500">Hỗ trợ khách hàng 24/7</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Illustration -->
+            <div class="relative">
+                <img src="{{ url_for('static', filename='images/services/hero_google.png') }}" alt="Google Ads Marketing" class="w-full h-auto object-contain max-h-[500px]">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="bg-slate-50 py-16">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <p class="text-slate-500 text-sm mb-2">Sức mạnh của công cụ tìm kiếm</p>
+        <h2 class="text-2xl md:text-3xl font-bold text-brandred uppercase mb-16">
+            LÝ DO GOOGLE ADS LÀ KÊNH MARKETING BẮT BUỘC
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-4xl mx-auto">
+            <div class="flex flex-col items-center">
+                <div class="h-20 flex items-center justify-center mb-6">
+                    <i data-lucide="search" class="w-16 h-16 text-brandblue"></i>
+                </div>
+                <h3 class="text-4xl font-black text-brandblue mb-2">8.5 tỷ</h3>
+                <p class="text-slate-600 text-sm">Lượt tìm kiếm mỗi ngày trên toàn cầu</p>
+            </div>
+            
+            <div class="flex flex-col items-center relative">
+                <div class="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 w-px h-24 bg-gray-200 -translate-x-6"></div>
+                <div class="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 w-px h-24 bg-gray-200 translate-x-6"></div>
+                
+                <div class="h-20 flex items-center justify-center mb-6">
+                    <i data-lucide="target" class="w-16 h-16 text-brandblue"></i>
+                </div>
+                <h3 class="text-4xl font-black text-brandblue mb-2">200%</h3>
+                <p class="text-slate-600 text-sm">ROI trung bình mà doanh nghiệp nhận được</p>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <div class="h-20 flex items-center justify-center mb-6">
+                    <i data-lucide="award" class="w-16 h-16 text-brandblue"></i>
+                </div>
+                <h3 class="text-4xl font-black text-brandblue mb-2">TOP 1</h3>
+                <p class="text-slate-600 text-sm">Vị trí hiển thị tiếp cận khách hàng nhanh nhất</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Details Section -->
+<section class="bg-white py-20">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-20">
+            <p class="text-slate-500 text-sm mb-2">Giải pháp của chúng tôi</p>
+            <h2 class="text-2xl md:text-3xl font-bold text-brandred uppercase">
+                CHIẾM LĨNH THỊ PHẦN TÌM KIẾM CỦA KHÁCH HÀNG
+            </h2>
+        </div>
+
+        <div class="space-y-24 max-w-5xl mx-auto">
+            <!-- Item 1 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <img src="{{ url_for('static', filename='images/services/google_marketing_1.png') }}" alt="Top tìm kiếm" class="w-full h-auto object-contain max-h-[350px]">
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-brandred uppercase mb-6 leading-relaxed">
+                        1. HIỂN THỊ Ở VỊ TRÍ ĐẦU TIÊN KHI KHÁCH HÀNG TÌM KIẾM
+                    </h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start gap-3">
+                            <i data-lucide="check" class="w-5 h-5 text-brandblue flex-shrink-0 mt-0.5"></i>
+                            <span class="text-slate-600 text-sm leading-relaxed">
+                                Đưa website của bạn lên các vị trí đầu tiên của kết quả tìm kiếm Google, nơi khách hàng tiềm năng đang chủ động tìm kiếm sản phẩm và dịch vụ.
+                            </span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i data-lucide="check" class="w-5 h-5 text-brandblue flex-shrink-0 mt-0.5"></i>
+                            <span class="text-slate-600 text-sm leading-relaxed">
+                                Tăng cường khả năng nhận diện thương hiệu với hiển thị ưu tiên.
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Item 2 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center flex-col-reverse md:flex-row">
+                <div class="order-2 md:order-1">
+                    <h3 class="text-xl font-bold text-brandred uppercase mb-6 leading-relaxed">
+                        2. TRẢ PHÍ THEO LƯỢT CLICK (PPC), TỐI ƯU NGÂN SÁCH
+                    </h3>
+                    <p class="text-slate-600 text-sm leading-relaxed text-justify">
+                        Khác với quảng cáo truyền thống, bạn chỉ phải trả tiền khi có người thực sự nhấp vào quảng cáo và truy cập website. Điều này đảm bảo mỗi đồng ngân sách được chi tiêu hợp lý cho đúng khách hàng thực sự quan tâm đến sản phẩm của bạn.
+                    </p>
+                </div>
+                <div class="order-1 md:order-2">
+                    <img src="{{ url_for('static', filename='images/services/google_marketing_2.png') }}" alt="Trả phí theo click" class="w-full h-auto object-contain max-h-[350px]">
+                </div>
+            </div>
+
+            <!-- Item 3 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <img src="{{ url_for('static', filename='images/services/google_marketing_3.png') }}" alt="Tiếp cận đúng thời điểm" class="w-full h-auto object-contain max-h-[350px]">
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-brandred uppercase mb-6 leading-relaxed">
+                        3. TIẾP CẬN KHÁCH HÀNG ĐÚNG THỜI ĐIỂM, ĐÚNG VỊ TRÍ
+                    </h3>
+                    <p class="text-slate-600 text-sm leading-relaxed text-justify">
+                        Công nghệ của Google cho phép phân phối quảng cáo chính xác theo khu vực địa lý, thời điểm trong ngày và thiết bị truy cập, giúp tối đa hóa khả năng chuyển đổi đơn hàng khi nhu cầu khách hàng cao nhất.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

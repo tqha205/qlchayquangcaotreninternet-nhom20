@@ -1,0 +1,345 @@
+{% extends "layouts/admin_base.html" %}
+
+{% block title %}Tổng quan - ADS Manager Premium{% endblock %}
+{% block page_title %}Chào mừng quay trở lại, {{ session.get('username') }}!{% endblock %}
+{% block page_subtitle %}Theo dõi hiệu quả quảng cáo và dự báo ngân sách thực tế.{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+<script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<style>
+    .banner-gradient { background: linear-gradient(102deg, #2563eb 0%, #4f46e5 100%); }
+    .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+    .indigo-soft { background-color: rgba(79, 70, 229, 0.05); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8 pb-12">
+    <!-- Header with Date Picker & Export -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div id="reportrange" class="bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm cursor-pointer flex items-center gap-2 hover:border-indigo-300 transition-colors">
+            <i data-lucide="calendar" class="w-4 h-4 text-indigo-500"></i>
+            <span class="text-sm font-semibold text-slate-600"></span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+        </div>
+        <div class="flex gap-2">
+            <button class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-50">
+                <i data-lucide="file-text" class="w-4 h-4"></i> PDF
+            </button>
+            <button class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-50">
+                <i data-lucide="table" class="w-4 h-4"></i> Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Top Banner & Burn Rate -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 banner-gradient rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center gap-8 relative overflow-hidden shadow-2xl shadow-indigo-100">
+            <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+            <div class="flex-1 space-y-4 relative z-10">
+                <span class="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest">Dự báo ngân sách</span>
+                <h2 class="text-3xl font-black leading-tight" id="burn-rate-title">Đang tính toán...</h2>
+                <p class="text-indigo-100 text-sm leading-relaxed max-w-md" id="burn-rate-desc">Dựa trên mức tiêu trung bình 7 ngày qua, tài khoản của bạn đang hoạt động ổn định.</p>
+                <div class="flex gap-4 pt-2">
+                    <button class="bg-white text-indigo-600 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-indigo-50 transition-all" onclick="location.href='/deposit'">Nạp thêm tiền</button>
+                </div>
+            </div>
+            <div class="w-40 h-40 bg-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md border border-white/20 relative z-10">
+                <p class="text-[10px] font-black uppercase opacity-60 mb-1">Số dư hiện tại</p>
+                <p class="text-xl font-black" id="current-balance">0đ</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm flex flex-col justify-between">
+            <div>
+                <h3 class="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                    <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
+                    Xu hướng chi tiêu
+                </h3>
+                <div id="mini-chart" class="w-full h-32"></div>
+            </div>
+            <div class="pt-4 border-t border-slate-50 flex justify-between items-end">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Trung bình ngày</p>
+                    <p class="text-2xl font-black text-slate-900" id="avg-daily-spent">0đ</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced KPI Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm card-hover">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500">
+                    <i data-lucide="eye" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Lượt hiển thị</p>
+                    <h4 class="text-xl font-black text-slate-900" id="stat-impressions">0</h4>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm card-hover">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
+                    <i data-lucide="mouse-pointer-2" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Lượt nhấn</p>
+                    <h4 class="text-xl font-black text-slate-900" id="stat-clicks">0</h4>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm card-hover border-b-4 border-b-indigo-500">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500">
+                    <i data-lucide="users" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Tổng Chuyển Đổi</p>
+                    <h4 class="text-xl font-black text-slate-900" id="stat-conversions">0</h4>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm card-hover border-b-4 border-b-emerald-500">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500">
+                    <i data-lucide="dollar-sign" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Giá mỗi Lead (CPL)</p>
+                    <h4 class="text-xl font-black text-slate-900" id="stat-cpl">0đ</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Section -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <!-- Campaigns List -->
+        <div class="xl:col-span-2 space-y-6">
+            <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                <div class="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+                    <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <i data-lucide="rocket" class="w-5 h-5 text-indigo-600"></i>
+                        Chiến dịch của bạn
+                    </h3>
+                    <a href="{{ url_for('admin.create_campaign') }}" class="bg-indigo-600 text-white text-xs font-bold rounded-xl px-4 py-2 hover:bg-indigo-700 transition flex items-center gap-1.5 shadow-lg shadow-indigo-100">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tạo mới
+                    </a>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/50">
+                                <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Chiến dịch</th>
+                                <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Trạng thái</th>
+                                <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Chi phí</th>
+                                <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="campaigns-tbody" class="divide-y divide-slate-50">
+                            <!-- JS will fill here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Creative Approval -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                <div class="px-8 py-6 border-b border-slate-50">
+                    <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <i data-lucide="check-circle" class="w-5 h-5 text-emerald-500"></i>
+                        Duyệt nhanh Mẫu QC
+                    </h3>
+                </div>
+                <div class="p-6 space-y-4" id="creative-approval-list">
+                    <div class="text-center text-slate-400 text-xs py-8 font-medium">Đang kiểm tra mẫu mới...</div>
+                </div>
+            </div>
+            
+            <!-- System Status -->
+            <div class="bg-slate-900 rounded-[2.5rem] p-8 text-white">
+                <h3 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Trạng thái kết nối</h3>
+                <div class="space-y-4" id="platform-status-list">
+                    <!-- Data here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function() {
+    // ── DATE RANGE PICKER ───────────────────────────────────────────────────
+    var start = moment().subtract(29, 'days');
+    var end   = moment();
+
+    function cb(start, end) {
+        $('#reportrange span').html(start.format('DD/MM/YYYY') + ' - ' + end.format('DD/MM/YYYY'));
+        loadData(start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD'));
+    }
+
+    $('#reportrange').daterangepicker({
+        startDate: start,
+        endDate: end,
+        ranges: {
+           '7 ngày qua': [moment().subtract(6, 'days'), moment()],
+           '30 ngày qua': [moment().subtract(29, 'days'), moment()],
+           'Tháng này': [moment().startOf('month'), moment().endOf('month')]
+        }
+    }, cb);
+
+    cb(start, end);
+
+    const fmtCurrency = v => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
+
+    // ── LOAD DATA ──────────────────────────────────────────────────────────
+    async function loadData(s, e) {
+        loadCampaigns();
+        loadClientMetrics();
+        loadCreativeQueue();
+        loadPlatformStatus();
+    }
+
+    async function loadCampaigns() {
+        const res = await fetch("{{ url_for('admin.get_campaigns') }}");
+        const data = await res.json();
+        const tbody = document.getElementById('campaigns-tbody');
+
+        let totalImpressions = 0, totalClicks = 0, totalSpent = 0;
+
+        tbody.innerHTML = data.map(c => {
+            totalSpent += c.spent;
+            const imps = Math.round(c.spent / 2); // Sim
+            const clicks = Math.round(imps * 0.02); // Sim
+            totalImpressions += imps; totalClicks += clicks;
+
+            return `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-8 py-5">
+                        <p class="text-sm font-black text-slate-800">${c.name}</p>
+                        <p class="text-[10px] text-slate-400 font-bold">${c.platform}</p>
+                    </td>
+                    <td class="px-8 py-5">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${c.status === 'Đang chạy' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}">
+                            ${c.status}
+                        </span>
+                    </td>
+                    <td class="px-8 py-5 text-right font-bold text-slate-700">${fmtCurrency(c.spent)}</td>
+                    <td class="px-8 py-5 text-center">
+                        <a href="/admin/campaigns/${c.id}" class="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all inline-block">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                        </a>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        document.getElementById('stat-impressions').textContent = totalImpressions.toLocaleString();
+        document.getElementById('stat-clicks').textContent = totalClicks.toLocaleString();
+        lucide.createIcons();
+    }
+
+    async function loadClientMetrics() {
+        const res = await fetch("{{ url_for('admin.get_client_metrics') }}");
+        const data = await res.json();
+
+        document.getElementById('stat-conversions').textContent = data.total_conversions;
+        document.getElementById('stat-cpl').textContent = fmtCurrency(data.cpl);
+        document.getElementById('current-balance').textContent = fmtCurrency(data.balance);
+        document.getElementById('avg-daily-spent').textContent = fmtCurrency(data.avg_daily_spend);
+
+        if (data.days_remaining !== null) {
+            document.getElementById('burn-rate-title').textContent = `Dự kiến hết tiền trong ${data.days_remaining} ngày`;
+            document.getElementById('burn-rate-desc').textContent = `Với mức tiêu ${fmtCurrency(data.avg_daily_spend)}/ngày, bạn nên nạp thêm tiền trước ${data.days_remaining} ngày tới để quảng cáo không bị gián đoạn.`;
+        } else {
+            document.getElementById('burn-rate-title').textContent = "Ngân sách đang ổn định";
+            document.getElementById('burn-rate-desc').textContent = "Bạn chưa có chi tiêu hoặc số dư đủ lớn để duy trì lâu dài.";
+        }
+    }
+
+    async function loadCreativeQueue() {
+        // Lấy từ approval queue nhưng chỉ lọc của campaign mình
+        const res = await fetch("{{ url_for('admin.get_approval_queue') }}");
+        const data = await res.json();
+        const container = document.getElementById('creative-approval-list');
+
+        // Ở bản demo này, tôi hiện tất cả creatives chờ duyệt. Thực tế nên lọc theo client_id.
+        let html = data.creatives.map(cr => `
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <p class="text-xs font-black text-slate-800">${cr.name}</p>
+                        <p class="text-[10px] text-slate-400">CD: ${cr.campaign_name}</p>
+                    </div>
+                    <span class="text-[10px] font-black text-indigo-600">CHỜ DUYỆT</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="approveCr(${cr.id})" class="flex-1 bg-emerald-500 text-white text-[10px] font-black py-2 rounded-lg hover:bg-emerald-600 transition">DUYỆT</button>
+                    <button onclick="rejectCr(${cr.id})" class="flex-1 bg-white border border-slate-200 text-slate-400 text-[10px] font-black py-2 rounded-lg hover:bg-red-50 hover:text-red-500 transition">TỪ CHỐI</button>
+                </div>
+            </div>
+        `).join('');
+
+        if (!html) html = '<div class="text-center py-8 text-slate-400 text-xs">Không có mẫu nào cần duyệt.</div>';
+        container.innerHTML = html;
+    }
+
+    async function loadPlatformStatus() {
+        const res = await fetch("{{ url_for('admin.get_platform_status') }}");
+        const data = await res.json();
+        const container = document.getElementById('platform-status-list');
+
+        container.innerHTML = data.map(p => `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-400' : 'bg-red-400'} animate-pulse"></div>
+                    <span class="text-xs font-bold text-slate-300">${p.name}</span>
+                </div>
+                <span class="text-[10px] font-black text-slate-500">${p.status === 'active' ? 'ONLINE' : 'ERROR'}</span>
+            </div>
+        `).join('');
+    }
+
+    window.approveCr = async id => {
+        if(!confirm('Duyệt mẫu quảng cáo này?')) return;
+        await fetch(`/api/creatives/${id}/approve`, { method: 'PUT' });
+        loadCreativeQueue();
+    };
+    window.rejectCr = async id => {
+        const feedback = prompt('Nhập lý do từ chối:');
+        if(!feedback) return;
+        await fetch(`/api/creatives/${id}/reject`, { 
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({feedback})
+        });
+        loadCreativeQueue();
+    };
+
+    initMiniChart();
+});
+
+function initMiniChart() {
+    new ApexCharts(document.querySelector("#mini-chart"), {
+        series: [{ data: [12, 18, 15, 25, 22, 30, 28] }],
+        chart: { type: 'area', height: 128, sparkline: { enabled: true } },
+        stroke: { curve: 'smooth', width: 3 },
+        colors: ['#4f46e5'],
+        fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0.1 } }
+    }).render();
+}
+</script>
+{% endblock %}
+
