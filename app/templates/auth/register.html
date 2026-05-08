@@ -1,260 +1,453 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Đăng ký - ADS Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: { primary: '#4F46E5', secondary: '#0F172A' },
-                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
-                }
-            }
-        }
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { primary: "#4F46E5", secondary: "#0F172A" },
+            fontFamily: { sans: ["Inter", "system-ui", "sans-serif"] },
+          },
+        },
+      };
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* Toast animation */
-        @keyframes slideIn  { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(110%); opacity: 0; } }
-        .toast-in  { animation: slideIn  0.35s ease forwards; }
-        .toast-out { animation: slideOut 0.35s ease forwards; }
+      /* Toast animation */
+      @keyframes slideIn {
+        from {
+          transform: translateX(110%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(110%);
+          opacity: 0;
+        }
+      }
+      .toast-in {
+        animation: slideIn 0.35s ease forwards;
+      }
+      .toast-out {
+        animation: slideOut 0.35s ease forwards;
+      }
     </style>
-</head>
-<body class="bg-indigo-600 flex items-center justify-center min-h-screen p-4 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500 via-indigo-600 to-indigo-900 antialiased">
-
+  </head>
+  <body
+    class="bg-indigo-600 flex items-center justify-center min-h-screen p-4 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500 via-indigo-600 to-indigo-900 antialiased"
+  >
     <!-- Toast Container -->
-    <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
+    <div
+      id="toast-container"
+      class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"
+    ></div>
 
-    <div class="w-full max-w-xl bg-white/95 backdrop-blur-xl p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-900/40 animate-in fade-in zoom-in duration-500">
-        <div class="text-center mb-8">
-            <div class="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-                <i data-lucide="user-plus" class="w-10 h-10 text-primary"></i>
+    <div
+      class="w-full max-w-xl bg-white/95 backdrop-blur-xl p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-900/40 animate-in fade-in zoom-in duration-500"
+    >
+      <div class="text-center mb-8">
+        <div
+          class="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner"
+        >
+          <i data-lucide="user-plus" class="w-10 h-10 text-primary"></i>
+        </div>
+        <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+          Tạo tài khoản mới
+        </h2>
+        <p class="text-slate-500 text-sm mt-2">
+          Bắt đầu quản lý chiến dịch quảng cáo của bạn ngay hôm nay
+        </p>
+      </div>
+
+      <form
+        onsubmit="
+          event.preventDefault();
+          doRegister();
+        "
+        id="register-form"
+        class="space-y-5"
+      >
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <!-- Họ và Tên -->
+          <div class="space-y-1.5 col-span-2">
+            <label
+              class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1"
+              >Họ và Tên *</label
+            >
+            <div class="relative">
+              <span
+                class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"
+              >
+                <i data-lucide="user" class="w-5 h-5"></i>
+              </span>
+              <input
+                type="text"
+                id="full_name"
+                required
+                class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
+                placeholder="Nguyễn Văn A"
+              />
             </div>
-            <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Tạo tài khoản mới</h2>
-            <p class="text-slate-500 text-sm mt-2">Bắt đầu quản lý chiến dịch quảng cáo của bạn ngay hôm nay</p>
+          </div>
+
+          <!-- Tên đăng nhập -->
+          <div class="space-y-1.5">
+            <label
+              class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1"
+              >Tên đăng nhập *</label
+            >
+            <div class="relative">
+              <span
+                class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"
+              >
+                <i data-lucide="at-sign" class="w-5 h-5"></i>
+              </span>
+              <input
+                type="text"
+                id="username"
+                required
+                minlength="3"
+                class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
+                placeholder="username (≥3 ký tự)"
+              />
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="space-y-1.5">
+            <label
+              class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1"
+              >Email</label
+            >
+            <div class="relative">
+              <span
+                class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"
+              >
+                <i data-lucide="mail" class="w-5 h-5"></i>
+              </span>
+              <input
+                type="email"
+                id="email"
+                class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
+                placeholder="example@email.com"
+              />
+            </div>
+          </div>
+
+          <!-- Mật khẩu -->
+          <div class="space-y-1.5">
+            <label
+              class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1"
+              >Mật khẩu *</label
+            >
+            <div class="relative">
+              <span
+                class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 pointer-events-none"
+              >
+                <i data-lucide="lock" class="w-5 h-5"></i>
+              </span>
+              <input
+                type="password"
+                id="password"
+                required
+                minlength="6"
+                oninput="checkStrength(this.value)"
+                class="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
+                placeholder="••••••••  (≥6 ký tự)"
+              />
+              <button
+                type="button"
+                id="toggle-password"
+                class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-opacity opacity-0"
+              >
+                <i data-lucide="eye" class="w-5 h-5"></i>
+              </button>
+            </div>
+            <!-- Strength Indicator -->
+            <div class="grid grid-cols-4 gap-1 mt-1.5 px-0.5">
+              <div
+                class="h-1 rounded-full bg-slate-200 transition-all duration-300"
+                id="s1"
+              ></div>
+              <div
+                class="h-1 rounded-full bg-slate-200 transition-all duration-300"
+                id="s2"
+              ></div>
+              <div
+                class="h-1 rounded-full bg-slate-200 transition-all duration-300"
+                id="s3"
+              ></div>
+              <div
+                class="h-1 rounded-full bg-slate-200 transition-all duration-300"
+                id="s4"
+              ></div>
+            </div>
+            <p
+              id="strength-label"
+              class="text-[10px] font-bold text-slate-400 ml-0.5"
+            ></p>
+          </div>
+
+          <!-- Xác nhận mật khẩu -->
+          <div class="space-y-1.5">
+            <label
+              class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1"
+              >Xác nhận mật khẩu *</label
+            >
+            <div class="relative">
+              <span
+                class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 pointer-events-none"
+              >
+                <i data-lucide="shield-check" class="w-5 h-5"></i>
+              </span>
+              <input
+                type="password"
+                id="confirm_password"
+                required
+                class="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
+                placeholder="Nhập lại mật khẩu"
+              />
+              <button
+                type="button"
+                id="toggle-confirm-password"
+                class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-opacity opacity-0"
+              >
+                <i data-lucide="eye" class="w-5 h-5"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Số điện thoại -->
+          <div class="space-y-1.5 col-span-2">
+            <label
+              class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1"
+              >Số điện thoại</label
+            >
+            <div class="relative">
+              <span
+                class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"
+              >
+                <i data-lucide="phone" class="w-5 h-5"></i>
+              </span>
+              <input
+                type="text"
+                id="phone"
+                class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
+                placeholder="0901xxxxxx"
+              />
+            </div>
+          </div>
         </div>
 
-        <form onsubmit="event.preventDefault(); doRegister();" id="register-form" class="space-y-5">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <button
+          type="submit"
+          id="register-btn"
+          class="w-full bg-primary text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-[0.98]"
+        >
+          Đăng ký ngay <i data-lucide="check" class="w-5 h-5"></i>
+        </button>
+      </form>
 
-                <!-- Họ và Tên -->
-                <div class="space-y-1.5 col-span-2">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Họ và Tên *</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
-                            <i data-lucide="user" class="w-5 h-5"></i>
-                        </span>
-                        <input type="text" id="full_name" required
-                            class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
-                            placeholder="Nguyễn Văn A">
-                    </div>
-                </div>
-
-                <!-- Tên đăng nhập -->
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Tên đăng nhập *</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
-                            <i data-lucide="at-sign" class="w-5 h-5"></i>
-                        </span>
-                        <input type="text" id="username" required minlength="3"
-                            class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
-                            placeholder="username (≥3 ký tự)">
-                    </div>
-                </div>
-
-                <!-- Email -->
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Email</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
-                            <i data-lucide="mail" class="w-5 h-5"></i>
-                        </span>
-                        <input type="email" id="email"
-                            class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
-                            placeholder="example@email.com">
-                    </div>
-                </div>
-
-                <!-- Mật khẩu -->
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Mật khẩu *</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
-                            <i data-lucide="lock" class="w-5 h-5"></i>
-                        </span>
-                        <input type="password" id="password" required minlength="6" oninput="checkStrength(this.value)"
-                            class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
-                            placeholder="••••••••  (≥6 ký tự)">
-                    </div>
-                    <!-- Strength Indicator -->
-                    <div class="grid grid-cols-4 gap-1 mt-1.5 px-0.5">
-                        <div class="h-1 rounded-full bg-slate-200 transition-all duration-300" id="s1"></div>
-                        <div class="h-1 rounded-full bg-slate-200 transition-all duration-300" id="s2"></div>
-                        <div class="h-1 rounded-full bg-slate-200 transition-all duration-300" id="s3"></div>
-                        <div class="h-1 rounded-full bg-slate-200 transition-all duration-300" id="s4"></div>
-                    </div>
-                    <p id="strength-label" class="text-[10px] font-bold text-slate-400 ml-0.5"></p>
-                </div>
-
-                <!-- Xác nhận mật khẩu -->
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Xác nhận mật khẩu *</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
-                            <i data-lucide="shield-check" class="w-5 h-5"></i>
-                        </span>
-                        <input type="password" id="confirm_password" required
-                            class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
-                            placeholder="Nhập lại mật khẩu">
-                    </div>
-                </div>
-
-                <!-- Số điện thoại -->
-                <div class="space-y-1.5 col-span-2">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Số điện thoại</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
-                            <i data-lucide="phone" class="w-5 h-5"></i>
-                        </span>
-                        <input type="text" id="phone"
-                            class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
-                            placeholder="0901xxxxxx">
-                    </div>
-                </div>
-            </div>
-
-            <button type="submit" id="register-btn"
-                class="w-full bg-primary text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-[0.98]">
-                Đăng ký ngay <i data-lucide="check" class="w-5 h-5"></i>
-            </button>
-        </form>
-
-        <div class="mt-6 text-center">
-            <p class="text-slate-500 text-sm">
-                Đã có tài khoản?
-                <a href="{{ url_for('public.login_page') }}" class="text-primary font-bold hover:underline">Đăng nhập tại đây</a>
-            </p>
-        </div>
+      <div class="mt-6 text-center">
+        <p class="text-slate-500 text-sm">
+          Đã có tài khoản?
+          <a
+            href="{{ url_for('public.login_page') }}"
+            class="text-primary font-bold hover:underline"
+            >Đăng nhập tại đây</a
+          >
+        </p>
+      </div>
     </div>
 
     <script>
-        lucide.createIcons();
+      lucide.createIcons();
 
-        // ─── Toast Notification System ───────────────────────────────────────────
-        function showToast(message, type = 'error') {
-            const container = document.getElementById('toast-container');
-            const colors = { error: 'bg-red-500', success: 'bg-emerald-500', warning: 'bg-amber-500' };
-            const icons  = { error: 'x-circle', success: 'check-circle', warning: 'alert-triangle' };
+      // ─── Password Eye Icon Visibility ────────────────────────────────────────
+      const passwordInput = document.getElementById("password");
+      const togglePasswordBtn = document.getElementById("toggle-password");
+      const confirmPasswordInput = document.getElementById("confirm_password");
+      const toggleConfirmPasswordBtn = document.getElementById(
+        "toggle-confirm-password",
+      );
 
-            const toast = document.createElement('div');
-            toast.className = `pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl text-white text-sm font-semibold shadow-2xl max-w-xs toast-in ${colors[type]}`;
-            toast.innerHTML = `
+      // Password field focus/blur handlers
+      passwordInput.addEventListener("focus", function () {
+        togglePasswordBtn.classList.remove("opacity-0");
+      });
+
+      passwordInput.addEventListener("blur", function () {
+        togglePasswordBtn.classList.add("opacity-0");
+      });
+
+      // Confirm password field focus/blur handlers
+      confirmPasswordInput.addEventListener("focus", function () {
+        toggleConfirmPasswordBtn.classList.remove("opacity-0");
+      });
+
+      confirmPasswordInput.addEventListener("blur", function () {
+        toggleConfirmPasswordBtn.classList.add("opacity-0");
+      });
+
+      // Toggle password visibility
+      togglePasswordBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (passwordInput.type === "password") {
+          passwordInput.type = "text";
+        } else {
+          passwordInput.type = "password";
+        }
+      });
+
+      // Toggle confirm password visibility
+      toggleConfirmPasswordBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (confirmPasswordInput.type === "password") {
+          confirmPasswordInput.type = "text";
+        } else {
+          confirmPasswordInput.type = "password";
+        }
+      });
+
+      // ─── Toast Notification System ───────────────────────────────────────────
+      function showToast(message, type = "error") {
+        const container = document.getElementById("toast-container");
+        const colors = {
+          error: "bg-red-500",
+          success: "bg-emerald-500",
+          warning: "bg-amber-500",
+        };
+        const icons = {
+          error: "x-circle",
+          success: "check-circle",
+          warning: "alert-triangle",
+        };
+
+        const toast = document.createElement("div");
+        toast.className = `pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl text-white text-sm font-semibold shadow-2xl max-w-xs toast-in ${colors[type]}`;
+        toast.innerHTML = `
                 <i data-lucide="${icons[type]}" class="w-5 h-5 flex-shrink-0"></i>
                 <span>${message}</span>
             `;
-            container.appendChild(toast);
-            lucide.createIcons();
+        container.appendChild(toast);
+        lucide.createIcons();
 
+        setTimeout(() => {
+          toast.classList.replace("toast-in", "toast-out");
+          setTimeout(() => toast.remove(), 350);
+        }, 4000);
+      }
+
+      // ─── Password Strength Checker ────────────────────────────────────────────
+      function checkStrength(pw) {
+        let score = 0;
+        if (pw.length >= 6) score++;
+        if (pw.length >= 10) score++;
+        if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+        if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+        const bars = ["s1", "s2", "s3", "s4"].map((id) =>
+          document.getElementById(id),
+        );
+        const label = document.getElementById("strength-label");
+        const levels = [
+          { text: "", color: "bg-slate-200" },
+          { text: "Yếu", color: "bg-red-400" },
+          { text: "Trung bình", color: "bg-amber-400" },
+          { text: "Mạnh", color: "bg-emerald-400" },
+          { text: "Rất mạnh 🔒", color: "bg-emerald-600" },
+        ];
+
+        bars.forEach((bar, i) => {
+          bar.className = `h-1 rounded-full transition-all duration-300 ${i < score ? levels[score].color : "bg-slate-200"}`;
+        });
+        label.textContent = pw.length ? levels[score].text : "";
+        label.className = `text-[10px] font-bold ml-0.5 ${score >= 3 ? "text-emerald-500" : score >= 2 ? "text-amber-500" : "text-red-400"}`;
+      }
+
+      // ─── Register Handler ─────────────────────────────────────────────────────
+      async function doRegister() {
+        const btn = document.getElementById("register-btn");
+        const pw = document.getElementById("password").value;
+        const confirmPw = document.getElementById("confirm_password").value;
+        const username = document.getElementById("username").value.trim();
+        const fullName = document.getElementById("full_name").value.trim();
+
+        // Client-side validation —  phía frontend
+        if (!fullName || !username || !pw) {
+          showToast("Vui lòng điền đầy đủ các trường bắt buộc (*)", "error");
+          return;
+        }
+        if (username.length < 3) {
+          showToast("Tên đăng nhập phải có ít nhất 3 ký tự!", "warning");
+          return;
+        }
+        if (pw.length < 6) {
+          showToast("Mật khẩu phải có ít nhất 6 ký tự!", "warning");
+          return;
+        }
+        if (pw !== confirmPw) {
+          showToast("Mật khẩu xác nhận không khớp!", "error");
+          document.getElementById("confirm_password").focus();
+          return;
+        }
+
+        const data = {
+          username: username,
+          password: pw,
+          full_name: fullName,
+          email: document.getElementById("email").value.trim(),
+          phone: document.getElementById("phone").value.trim(),
+        };
+
+        const originalContent = btn.innerHTML;
+        btn.innerHTML =
+          '<span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Đang xử lý...';
+        btn.disabled = true;
+
+        try {
+          const res = await fetch("{{ url_for('auth.register') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          const result = await res.json();
+
+          if (result.success) {
+            showToast("Đăng ký thành công! Đang chuyển hướng...", "success");
             setTimeout(() => {
-                toast.classList.replace('toast-in', 'toast-out');
-                setTimeout(() => toast.remove(), 350);
-            }, 4000);
+              window.location.href = "{{ url_for('public.index') }}";
+            }, 1200);
+          } else {
+            showToast(result.message || "Đăng ký không thành công", "error");
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+            lucide.createIcons();
+          }
+        } catch (error) {
+          showToast("Có lỗi xảy ra, vui lòng thử lại sau.", "error");
+          btn.innerHTML = originalContent;
+          btn.disabled = false;
+          lucide.createIcons();
         }
-
-        // ─── Password Strength Checker ────────────────────────────────────────────
-        function checkStrength(pw) {
-            let score = 0;
-            if (pw.length >= 6)                          score++;
-            if (pw.length >= 10)                         score++;
-            if (/[A-Z]/.test(pw) && /[a-z]/.test(pw))  score++;
-            if (/[^A-Za-z0-9]/.test(pw))                score++;
-
-            const bars  = ['s1','s2','s3','s4'].map(id => document.getElementById(id));
-            const label = document.getElementById('strength-label');
-            const levels = [
-                { text: '',             color: 'bg-slate-200'    },
-                { text: 'Yếu',          color: 'bg-red-400'      },
-                { text: 'Trung bình',   color: 'bg-amber-400'    },
-                { text: 'Mạnh',         color: 'bg-emerald-400'  },
-                { text: 'Rất mạnh 🔒',  color: 'bg-emerald-600'  },
-            ];
-
-            bars.forEach((bar, i) => {
-                bar.className = `h-1 rounded-full transition-all duration-300 ${i < score ? levels[score].color : 'bg-slate-200'}`;
-            });
-            label.textContent = pw.length ? levels[score].text : '';
-            label.className   = `text-[10px] font-bold ml-0.5 ${score >= 3 ? 'text-emerald-500' : score >= 2 ? 'text-amber-500' : 'text-red-400'}`;
-        }
-
-        // ─── Register Handler ─────────────────────────────────────────────────────
-        async function doRegister() {
-            const btn       = document.getElementById('register-btn');
-            const pw        = document.getElementById('password').value;
-            const confirmPw = document.getElementById('confirm_password').value;
-            const username  = document.getElementById('username').value.trim();
-            const fullName  = document.getElementById('full_name').value.trim();
-
-            // Client-side validation —  phía frontend
-            if (!fullName || !username || !pw) {
-                showToast('Vui lòng điền đầy đủ các trường bắt buộc (*)', 'error');
-                return;
-            }
-            if (username.length < 3) {
-                showToast('Tên đăng nhập phải có ít nhất 3 ký tự!', 'warning');
-                return;
-            }
-            if (pw.length < 6) {
-                showToast('Mật khẩu phải có ít nhất 6 ký tự!', 'warning');
-                return;
-            }
-            if (pw !== confirmPw) {
-                showToast('Mật khẩu xác nhận không khớp!', 'error');
-                document.getElementById('confirm_password').focus();
-                return;
-            }
-
-            const data = {
-                username:  username,
-                password:  pw,
-                full_name: fullName,
-                email:     document.getElementById('email').value.trim(),
-                phone:     document.getElementById('phone').value.trim(),
-            };
-
-            const originalContent = btn.innerHTML;
-            btn.innerHTML = '<span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Đang xử lý...';
-            btn.disabled = true;
-
-            try {
-                const res    = await fetch("{{ url_for('auth.register') }}", {
-                    method:  'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify(data)
-                });
-                const result = await res.json();
-
-                if (result.success) {
-                    showToast('Đăng ký thành công! Đang chuyển hướng...', 'success');
-                    setTimeout(() => { window.location.href = "{{ url_for('public.index') }}"; }, 1200);
-                } else {
-                    showToast(result.message || 'Đăng ký không thành công', 'error');
-                    btn.innerHTML = originalContent;
-                    btn.disabled  = false;
-                    lucide.createIcons();
-                }
-            } catch (error) {
-                showToast('Có lỗi xảy ra, vui lòng thử lại sau.', 'error');
-                btn.innerHTML = originalContent;
-                btn.disabled  = false;
-                lucide.createIcons();
-            }
-        }
+      }
     </script>
-</body>
+  </body>
 </html>

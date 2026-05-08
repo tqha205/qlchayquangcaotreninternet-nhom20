@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, session, render_template, redirect, url_for, current_app
 from app.models import (DBModel, CampaignModel, CustomerModel, InquiryModel,
-                        DailyReportModel, NotificationModel, AuditLogModel, CreativeModel, TransactionModel, UserModel, PlatformModel, SpendingModel)
+                        DailyReportModel, NotificationModel, AuditLogModel, CreativeModel, TransactionModel, UserModel, PlatformModel, SpendingModel, CampaignPlatformModel)
 from app.utils.notifications import check_budget_and_notify
 from functools import wraps
 from datetime import datetime
@@ -1175,8 +1175,29 @@ def campaign_detail(campaign_id):
         if not cust or cust.get('marketer_id') != user_id:
             return "Unauthorized", 403
 
-    creatives = CreativeModel.get_by_campaign(campaign_id)
-    return render_template('admin/campaign_detail.html', campaign=cam, creatives=creatives)
+    creatives  = CreativeModel.get_by_campaign(campaign_id)
+    platforms  = CampaignPlatformModel.get_by_campaign(campaign_id)
+    
+    # Tính trạng thái thanh toán
+    customer_balance = 0.0
+    payment_status   = 'pending'
+    if cam.get('customer_id'):
+        cust_data = CustomerModel.get_by_id(cam['customer_id'])
+        if cust_data:
+            customer_balance = float(cust_data.get('balance') or 0)
+    if platforms:
+        payment_status = CampaignPlatformModel.compute_payment_status(campaign_id, customer_balance)
+        # Lưu lại vào DB nếu thay đổi
+        if cam.get('payment_status') != payment_status:
+            DBModel.execute("UPDATE campaigns SET payment_status = %s WHERE id = %s",
+                            (payment_status, campaign_id))
+
+    return render_template('admin/campaign_detail.html',
+                           campaign=cam,
+                           creatives=creatives,
+                           platforms=platforms,
+                           payment_status=payment_status,
+                           customer_balance=customer_balance)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1344,3 +1365,264 @@ def ad_preview(campaign_id):
 def customer_detail(customer_id):
     """Trang thông tin chi tiết khách hàng (sử dụng trang danh sách kèm filter)."""
     return redirect(url_for('admin.customers', id=customer_id))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# API — Multi-Platform Campaign Management
+# ─────────────────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/api/campaigns/<int:campaign_id>/platforms', methods=['GET'])
+@require_role_api(['admin', 'marketer', 'client'])
+def get_campaign_platforms(campaign_id):
+    """Lấy danh sách nền tảng và thống kê hiệu quả của một chiến dịch."""
+    cam = CampaignModel.get_by_id(campaign_id)
+    if not cam:
+        return jsonify({'success': False, 'message': 'Không tìm thấy chiến dịch!'}), 404
+
+    # Kiểm tra quyền
+    if session['role'] == 'client' and cam['customer_id'] != session.get('customer_id'):
+        return jsonify({'success': False, 'message': 'Không có quyền truy cập!'}), 403
+
+    platforms = CampaignPlatformModel.get_by_campaign(campaign_id)
+    
+    # Serialize datetime
+    for p in platforms:
+        if p.get('created_at') and hasattr(p['created_at'], 'strftime'):
+            p['created_at'] = p['created_at'].strftime('%Y-%m-%d %H:%M')
+
+    return jsonify({'success': True, 'data': platforms})
+
+
+@admin_bp.route('/api/campaigns/<int:campaign_id>/platforms/add', methods=['POST'])
+@require_role_api(['admin', 'marketer'])
+def add_campaign_platform(campaign_id):
+    """Thêm một nền tảng vào chiến dịch với ngân sách phân bổ riêng."""
+    cam = CampaignModel.get_by_id(campaign_id)
+    if not cam:
+        return jsonify({'success': False, 'message': 'Không tìm thấy chiến dịch!'}), 404
+
+    data        = request.json or {}
+    platform_id = data.get('platform_id')
+    budget_alloc = float(data.get('budget_alloc') or 0)
+
+    if not platform_id:
+        return jsonify({'success': False, 'message': 'Vui lòng chọn nền tảng!'}), 400
+    if budget_alloc <= 0:
+        return jsonify({'success': False, 'message': 'Ngân sách phân bổ phải là số dương!'}), 400
+
+    # Kiểm tra tổng ngân sách phân bổ không vượt ngân sách chiến dịch
+    current_alloc = CampaignPlatformModel.get_total_alloc(campaign_id)
+    if current_alloc + budget_alloc > float(cam['budget']):
+        return jsonify({
+            'success': False,
+            'message': f'Tổng ngân sách phân bổ ({(current_alloc + budget_alloc)/1e6:.1f}M) vượt quá ngân sách chiến dịch ({float(cam["budget"])/1e6:.1f}M)!'
+        }), 400
+
+    try:
+        plat = PlatformModel.get_by_id(platform_id)
+        if not plat:
+            return jsonify({'success': False, 'message': 'Nền tảng không tồn tại!'}), 404
+
+        CampaignPlatformModel.add(campaign_id, platform_id, budget_alloc)
+        AuditLogModel.log(session['user_id'], 'ADD_CAMPAIGN_PLATFORM', 'campaign_platforms', campaign_id, None,
+                          {'platform_id': platform_id, 'budget_alloc': budget_alloc})
+        return jsonify({'success': True, 'message': f'Đã thêm nền tảng {plat["name"]} với ngân sách {budget_alloc/1e6:.1f}M!'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@admin_bp.route('/api/campaigns/<int:campaign_id>/platforms/<int:platform_id>/remove', methods=['DELETE'])
+@require_role_api(['admin', 'marketer'])
+def remove_campaign_platform(campaign_id, platform_id):
+    """Xóa một nền tảng khỏi chiến dịch."""
+    try:
+        CampaignPlatformModel.remove(campaign_id, platform_id)
+        AuditLogModel.log(session['user_id'], 'REMOVE_CAMPAIGN_PLATFORM', 'campaign_platforms', campaign_id, None,
+                          {'platform_id': platform_id})
+        return jsonify({'success': True, 'message': 'Đã xóa nền tảng khỏi chiến dịch!'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@admin_bp.route('/api/campaigns/<int:campaign_id>/platforms/<int:cp_id>/update', methods=['PUT'])
+@require_role_api(['admin', 'marketer'])
+def update_campaign_platform(campaign_id, cp_id):
+    """Cập nhật ngân sách phân bổ hoặc trạng thái của một nền tảng."""
+    data   = request.json or {}
+    cp_rec = CampaignPlatformModel.get_by_id(cp_id)
+    if not cp_rec or cp_rec['campaign_id'] != campaign_id:
+        return jsonify({'success': False, 'message': 'Không tìm thấy bản ghi!'}), 404
+
+    try:
+        if 'budget_alloc' in data:
+            CampaignPlatformModel.update_budget(campaign_id, cp_rec['platform_id'], float(data['budget_alloc']))
+        if 'status' in data and data['status'] in ('active', 'paused', 'completed'):
+            CampaignPlatformModel.update_status(cp_id, data['status'])
+        return jsonify({'success': True, 'message': 'Cập nhật thành công!'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@admin_bp.route('/api/campaigns/<int:campaign_id>/results')
+@require_role_api(['admin', 'marketer', 'client'])
+def get_campaign_results(campaign_id):
+    """Kết quả chiến dịch: biểu đồ chi tiêu + chỉ số tổng hợp theo nền tảng."""
+    cam = CampaignModel.get_by_id(campaign_id)
+    if not cam:
+        return jsonify({'success': False, 'message': 'Không tìm thấy chiến dịch!'}), 404
+
+    if session['role'] == 'client' and cam['customer_id'] != session.get('customer_id'):
+        return jsonify({'success': False, 'message': 'Không có quyền!'}), 403
+
+    days = int(request.args.get('days', 30))
+    
+    # 1. Dữ liệu biểu đồ theo ngày × nền tảng
+    chart_raw = CampaignPlatformModel.get_daily_chart_data(campaign_id, days)
+    
+    # Pivot: { platform_name: { date: { spent, clicks, impressions } } }
+    chart_by_platform = {}
+    all_dates = sorted(set(str(r['date']) for r in chart_raw))
+    
+    for r in chart_raw:
+        pname = r['platform_name']
+        date  = str(r['date'])
+        if pname not in chart_by_platform:
+            chart_by_platform[pname] = {}
+        chart_by_platform[pname][date] = {
+            'spent':       float(r['daily_spent'] or 0),
+            'clicks':      int(r['daily_clicks'] or 0),
+            'impressions': int(r['daily_impressions'] or 0),
+        }
+
+    # 2. Tổng hợp theo nền tảng
+    platforms_stats = CampaignPlatformModel.get_by_campaign(campaign_id)
+    
+    # 3. Tổng toàn chiến dịch
+    total_clicks      = sum(p.get('total_clicks', 0) for p in platforms_stats)
+    total_impressions = sum(p.get('total_impressions', 0) for p in platforms_stats)
+    total_spent       = float(cam.get('spent') or 0)
+    total_budget      = float(cam.get('budget') or 1)
+
+    # Serialize datetime
+    for p in platforms_stats:
+        if p.get('created_at') and hasattr(p['created_at'], 'strftime'):
+            p['created_at'] = p['created_at'].strftime('%Y-%m-%d')
+
+    return jsonify({
+        'success': True,
+        'chart': {
+            'dates':       all_dates,
+            'by_platform': chart_by_platform,
+        },
+        'summary': {
+            'total_budget':      total_budget,
+            'total_spent':       total_spent,
+            'total_clicks':      int(total_clicks),
+            'total_impressions': int(total_impressions),
+            'ctr':    round(total_clicks / total_impressions * 100, 2) if total_impressions > 0 else 0,
+            'cpc':    round(total_spent / total_clicks) if total_clicks > 0 else 0,
+            'spent_pct': round(total_spent / total_budget * 100, 1),
+        },
+        'platforms': platforms_stats,
+    })
+
+
+@admin_bp.route('/api/campaigns/<int:campaign_id>/payment-status')
+@require_role_api(['admin', 'marketer', 'client'])
+def get_payment_status(campaign_id):
+    """Trạng thái thanh toán của chiến dịch."""
+    cam = CampaignModel.get_by_id(campaign_id)
+    if not cam:
+        return jsonify({'success': False, 'message': 'Không tìm thấy chiến dịch!'}), 404
+
+    if session['role'] == 'client' and cam['customer_id'] != session.get('customer_id'):
+        return jsonify({'success': False, 'message': 'Không có quyền!'}), 403
+
+    customer_balance = 0.0
+    if cam.get('customer_id'):
+        cust_data = CustomerModel.get_by_id(cam['customer_id'])
+        if cust_data:
+            customer_balance = float(cust_data.get('balance') or 0)
+
+    total_alloc    = CampaignPlatformModel.get_total_alloc(campaign_id)
+    payment_status = CampaignPlatformModel.compute_payment_status(campaign_id, customer_balance)
+    shortfall      = max(0, total_alloc - customer_balance)
+
+    return jsonify({
+        'success':         True,
+        'payment_status':  payment_status,
+        'customer_balance': customer_balance,
+        'total_alloc':     total_alloc,
+        'shortfall':       shortfall,
+    })
+
+
+@admin_bp.route('/api/campaigns/add-v2', methods=['POST'])
+@require_role_api(['admin', 'marketer', 'client'])
+def add_campaign_v2():
+    """Tạo chiến dịch với nhiều nền tảng cùng lúc (phiên bản mới)."""
+    data = request.json or {}
+
+    name        = (data.get('name') or '').strip()
+    objective   = (data.get('objective') or '').strip()
+    customer_id = data.get('customer_id')
+    budget      = data.get('budget')
+    start_date  = data.get('start_date') or None
+    end_date    = data.get('end_date')   or None
+    target_link = (data.get('target_link') or '').strip()
+    platforms   = data.get('platforms', [])  # [{platform_id, budget_alloc}, ...]
+
+    # Creative fields
+    creative_title = (data.get('creative_title') or name).strip()
+    creative_desc  = (data.get('creative_desc') or '').strip()
+    media_url      = (data.get('media_url') or '').strip()
+    media_type     = (data.get('media_type') or 'image').strip()
+
+    if not name:
+        return jsonify({'success': False, 'message': 'Tên chiến dịch không được để trống!'}), 400
+    if not customer_id:
+        return jsonify({'success': False, 'message': 'Vui lòng chọn khách hàng!'}), 400
+    if not platforms:
+        return jsonify({'success': False, 'message': 'Vui lòng chọn ít nhất 1 nền tảng!'}), 400
+
+    try:
+        budget = float(budget)
+        if budget <= 0:
+            return jsonify({'success': False, 'message': 'Ngân sách phải là số dương!'}), 400
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Ngân sách không hợp lệ!'}), 400
+
+    # Validate phân bổ ngân sách
+    total_alloc = sum(float(p.get('budget_alloc', 0)) for p in platforms)
+    if total_alloc > budget:
+        return jsonify({'success': False, 'message': f'Tổng ngân sách phân bổ ({total_alloc:,.0f}) vượt quá ngân sách chiến dịch ({budget:,.0f})!'}), 400
+
+    if start_date and end_date:
+        try:
+            if datetime.strptime(start_date, '%Y-%m-%d') >= datetime.strptime(end_date, '%Y-%m-%d'):
+                return jsonify({'success': False, 'message': 'Ngày bắt đầu phải trước ngày kết thúc!'}), 400
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Định dạng ngày không hợp lệ!'}), 400
+
+    try:
+        # Lấy tên nền tảng đầu tiên cho cột platform cũ (backward compat)
+        first_platform = PlatformModel.get_by_id(platforms[0]['platform_id'])
+        platform_name  = first_platform['name'] if first_platform else 'Multi-Platform'
+
+        # 1. Tạo Campaign
+        new_id = CampaignModel.create(name, customer_id, platform_name, budget, start_date, end_date, target_link, objective)
+
+        # 2. Thêm từng nền tảng
+        for p_item in platforms:
+            CampaignPlatformModel.add(new_id, int(p_item['platform_id']), float(p_item.get('budget_alloc', 0)))
+
+        # 3. Tạo Creative mặc định
+        if creative_title:
+            CreativeModel.create(new_id, creative_title, media_type, media_url, creative_desc)
+
+        AuditLogModel.log(session['user_id'], 'CREATE_CAMPAIGN_MULTIPLATFORM', 'campaigns', new_id, None,
+                          {'name': name, 'platforms': platforms, 'budget': budget})
+
+        return jsonify({'success': True, 'message': f'Đã tạo chiến dịch "{name}" trên {len(platforms)} nền tảng!', 'id': new_id})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
