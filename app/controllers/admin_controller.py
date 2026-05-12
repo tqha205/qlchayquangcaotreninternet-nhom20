@@ -6,9 +6,6 @@ from functools import wraps
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
-from app.extensions import db, limiter
-from app.utils.validation import validate_schema, CampaignCreateSchema
-from decimal import Decimal
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -38,13 +35,6 @@ def require_role_page(roles):
         def decorated_function(*args, **kwargs):
             if 'user_id' not in session:
                 return redirect(url_for('public.login_page'))
-            
-            # KIỂM TRA TRẠNG THÁI TÀI KHOẢN (Security Guard)
-            user = UserModel.get_by_id(session['user_id'])
-            if not user or not user.is_active:
-                session.clear()
-                return redirect(url_for('public.login_page', error='Tài khoản của bạn đã bị tạm khóa'))
-                
             if session.get('role') not in roles:
                 return redirect(url_for('public.index'))
             return f(*args, **kwargs)
@@ -67,7 +57,7 @@ def dashboard():
     if session.get('role') == 'client' and session.get('customer_id'):
         cust = CustomerModel.get_by_id(session['customer_id'])
         if cust:
-            customer_balance = float(cust.balance or 0)
+            customer_balance = float(cust.get('balance') or 0)
         return render_template('admin/client_dashboard.html', balance=customer_balance)
     return render_template('admin/dashboard.html')
 
@@ -138,79 +128,31 @@ def get_stats():
 # ─────────────────────────────────────────────────────────────────────────────
 
 @admin_bp.route('/api/admin/approval-queue')
-@require_role_api(['admin', 'marketer', 'client'])
+@require_role_api(['admin', 'marketer'])
 def get_approval_queue():
-    """Lấy danh sách các mục đang chờ phê duyệt (đã lọc theo quyền)."""
-    role    = session['role']
-    cust_id = session.get('customer_id')
-    user_id = session.get('user_id')
-
-    pending_txs = []
-    if role == 'admin':
-        pending_txs = TransactionModel.get_all(status='pending')
+    """Lấy danh sách các mục đang chờ phê duyệt."""
+    # 1. Nạp tiền mới
+    pending_txs = TransactionModel.get_all(status='pending')
     
     # 2. Chiến dịch mới
-    if role == 'admin':
-        pending_cams = DBModel.fetch_all(
-            "SELECT c.*, cu.name as customer_name FROM campaigns c "
-            "JOIN customers cu ON c.customer_id = cu.id "
-            "WHERE c.approval_status = 'pending' AND c.is_deleted = 0"
-        )
-    elif role == 'marketer':
-        pending_cams = DBModel.fetch_all(
-            "SELECT c.*, cu.name as customer_name FROM campaigns c "
-            "JOIN customers cu ON c.customer_id = cu.id "
-            "WHERE c.approval_status = 'pending' AND c.is_deleted = 0 AND cu.marketer_id = %s",
-            (user_id,)
-        )
-    else: # client
-        pending_cams = DBModel.fetch_all(
-            "SELECT c.*, cu.name as customer_name FROM campaigns c "
-            "JOIN customers cu ON c.customer_id = cu.id "
-            "WHERE c.approval_status = 'pending' AND c.is_deleted = 0 AND c.customer_id = %s",
-            (cust_id,)
-        )
+    pending_cams = DBModel.fetch_all(
+        "SELECT c.*, cu.name as customer_name FROM campaigns c "
+        "JOIN customers cu ON c.customer_id = cu.id "
+        "WHERE c.approval_status = 'pending' AND c.is_deleted = 0"
+    )
     
     # 3. Mẫu quảng cáo cần rà soát
-    if role == 'admin':
-        pending_creatives = DBModel.fetch_all(
-            "SELECT cr.*, cam.name as campaign_name FROM creatives cr "
-            "JOIN campaigns cam ON cr.campaign_id = cam.id "
-            "WHERE cr.status = 'Chờ duyệt'"
-        )
-    elif role == 'marketer':
-        pending_creatives = DBModel.fetch_all(
-            "SELECT cr.*, cam.name as campaign_name FROM creatives cr "
-            "JOIN campaigns cam ON cr.campaign_id = cam.id "
-            "JOIN customers cu ON cam.customer_id = cu.id "
-            "WHERE cr.status = 'Chờ duyệt' AND cu.marketer_id = %s",
-            (user_id,)
-        )
-    else: # client
-        pending_creatives = DBModel.fetch_all(
-            "SELECT cr.*, cam.name as campaign_name FROM creatives cr "
-            "JOIN campaigns cam ON cr.campaign_id = cam.id "
-            "WHERE cr.status = 'Chờ duyệt' AND cam.customer_id = %s",
-            (cust_id,)
-        )
-    
-    # Convert transactions to dict for JSON serialization
-    transactions_list = []
-    for tx in pending_txs:
-        transactions_list.append({
-            'id': tx.id,
-            'customer_name': tx.customer.name if tx.customer else 'N/A',
-            'type': tx.type,
-            'amount': float(tx.amount),
-            'status': tx.status,
-            'created_at': tx.created_at.strftime('%Y-%m-%d %H:%M:%S') if tx.created_at else None
-        })
+    pending_creatives = DBModel.fetch_all(
+        "SELECT cr.*, cam.name as campaign_name FROM creatives cr "
+        "JOIN campaigns cam ON cr.campaign_id = cam.id "
+        "WHERE cr.status = 'Chờ duyệt'"
+    )
     
     return jsonify({
-        'transactions': transactions_list,
+        'transactions': pending_txs,
         'campaigns': pending_cams,
         'creatives': pending_creatives,
-        'total_pending': len(transactions_list) + len(pending_cams) + len(pending_creatives)
+        'total_pending': len(pending_txs) + len(pending_cams) + len(pending_creatives)
     })
 
 
@@ -252,13 +194,6 @@ def get_staff_performance():
     return jsonify(performance)
 
 
-@admin_bp.route('/audit-logs')
-@require_role_page(['admin'])
-def audit_logs_page():
-    """Trang hiển thị nhật ký hệ thống."""
-    return render_template('admin/audit_logs.html')
-
-
 @admin_bp.route('/api/admin/audit-logs')
 @require_role_api(['admin'])
 def get_audit_logs():
@@ -285,26 +220,16 @@ def get_client_metrics():
     if not cust_id:
         return jsonify({'error': 'Không tìm thấy thông tin khách hàng'}), 400
 
-    start_date = request.args.get('start_date')
-    end_date   = request.args.get('end_date')
-
-    # 1. CPL & Conversions & Total Spent
-    where_clause = "WHERE c.customer_id = %s AND c.is_deleted = 0"
-    params = [cust_id]
-
-    if start_date and end_date:
-        where_clause += " AND dr.report_date BETWEEN %s AND %s"
-        params.extend([start_date, end_date])
-
-    sql_metrics = f"""
+    # 1. CPL & Conversions
+    sql_metrics = """
         SELECT SUM(daily_spent) as total_spent,
                SUM(conversions) as total_conv,
                SUM(daily_spent) / NULLIF(SUM(conversions), 0) as cpl
         FROM daily_reports dr
         JOIN campaigns c ON dr.campaign_id = c.id
-        {where_clause}
+        WHERE c.customer_id = %s AND c.is_deleted = 0
     """
-    metrics = DBModel.fetch_one(sql_metrics, tuple(params))
+    metrics = DBModel.fetch_one(sql_metrics, (cust_id,))
 
     # 2. Burn Rate (Dự báo hết tiền)
     # Lấy chi tiêu trung bình 7 ngày qua
@@ -315,38 +240,22 @@ def get_client_metrics():
         WHERE c.customer_id = %s AND dr.report_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
     """
     avg_spend_res = DBModel.fetch_one(sql_avg_spend, (cust_id,))
-
     avg_daily_spend = float(avg_spend_res['avg_daily_spend'] or 0) if avg_spend_res else 0
 
     cust = CustomerModel.get_by_id(cust_id)
-    balance = float(cust.balance or 0)
+    balance = float(cust['balance'] or 0)
     
     days_remaining = None
     if avg_daily_spend > 0:
         days_remaining = int(balance / avg_daily_spend)
 
-    # 3. Over Budget Campaigns
-    sql_over_budget = """
-        SELECT name, budget, spent
-        FROM campaigns
-        WHERE customer_id = %s AND is_deleted = 0 AND spent >= budget AND budget > 0
-    """
-    over_budget_cams = DBModel.fetch_all(sql_over_budget, (cust_id,))
-    for c in over_budget_cams:
-        c['budget'] = float(c['budget'] or 0)
-        c['spent'] = float(c['spent'] or 0)
-
     return jsonify({
         'total_conversions': int(metrics['total_conv'] or 0),
-        'total_spent': float(metrics['total_spent'] or 0),
         'cpl': float(metrics['cpl'] or 0),
         'avg_daily_spend': avg_daily_spend,
         'balance': balance,
-        'days_remaining': days_remaining,
-        'over_budget_count': len(over_budget_cams),
-        'over_budget_campaigns': over_budget_cams
+        'days_remaining': days_remaining
     })
-
 
 
 @admin_bp.route('/api/platforms/status')
@@ -367,49 +276,27 @@ def admin_dashboard_v2():
 @require_role_api(['admin', 'marketer', 'client'])
 def get_campaigns():
     """Lấy danh sách chiến dịch kèm label hiệu quả."""
-    start_date = request.args.get('start_date')
-    end_date   = request.args.get('end_date')
-    
     cams   = CampaignModel.get_by_role(session['role'], session.get('customer_id'), session.get('user_id'))
     result = []
 
-    for cam_obj in cams:
-        # Convert to dict for compatibility and JSON serialization
-        c = {
-            'id': cam_obj.id,
-            'name': cam_obj.name,
-            'budget': float(cam_obj.budget or 0),
-            'spent': float(cam_obj.spent or 0),
-            'status': cam_obj.status,
-            'approval_status': cam_obj.approval_status,
-            'platform': cam_obj.platform,
-            'target_link': cam_obj.target_link,
-            'created_at': cam_obj.created_at.strftime('%Y-%m-%d %H:%M:%S') if cam_obj.created_at else None
-        }
+    for c in cams:
+        budget = float(c.get('budget') or 0)
+        spent  = float(c.get('spent')  or 0)
+        ratio  = (spent / budget) if budget > 0 else 0
 
-        # Nếu có khoảng thời gian, tính lại spent trong khoảng đó
-        if start_date and end_date:
-            sql_range_spent = """
-                SELECT SUM(daily_spent) as range_spent 
-                FROM daily_reports 
-                WHERE campaign_id = %s AND report_date BETWEEN %s AND %s
-            """
-            row = DBModel.fetch_one(sql_range_spent, (c['id'], start_date, end_date))
-            c['spent'] = float(row['range_spent'] or 0)
-
-        # Thêm CTR/CPC và nhãn hiệu quả từ efficiency stats
-        eff = CampaignModel.get_efficiency_stats(c['id'])
-        if eff:
-            c['ctr'] = eff['ctr']
-            c['cpc'] = eff['cpc']
-            c['efficiency_label'] = eff['label']
-            c['efficiency_css']   = eff['label_css']
+        if ratio < 0.8:
+            c['efficiency_label'] = 'Tốt'
+            c['efficiency_css']   = 'emerald'
+        elif ratio < 0.9:
+            c['efficiency_label'] = 'Cần tối ưu'
+            c['efficiency_css']   = 'amber'
         else:
-            c['ctr'] = 0
-            c['cpc'] = 0
-            c['efficiency_label'] = 'N/A'
-            c['efficiency_css']   = 'bg-slate-100 text-slate-500'
+            c['efficiency_label'] = 'Cảnh báo'
+            c['efficiency_css']   = 'red'
 
+        # Chuyển Decimal sang float để JSON serialize được
+        c['budget'] = float(c.get('budget') or 0)
+        c['spent']  = float(c.get('spent')  or 0)
         result.append(c)
 
     return jsonify(result)
@@ -429,7 +316,6 @@ def get_customers():
 
 @admin_bp.route('/api/campaigns/add', methods=['POST'])
 @require_role_api(['admin', 'marketer', 'client'])
-@validate_schema(CampaignCreateSchema)
 def add_campaign():
     """Thêm chiến dịch mới và nội dung quảng cáo (Creative)."""
     data = request.json or {}
@@ -527,8 +413,8 @@ def update_campaign(campaign_id):
 
         # Check permission for marketer
         if session.get('role') == 'marketer':
-            cust = CustomerModel.get_by_id(old_val.customer_id)
-            if not cust or cust.marketer_id != session.get('user_id'):
+            cust = CustomerModel.get_by_id(old_val['customer_id'])
+            if not cust or cust.get('marketer_id') != session.get('user_id'):
                 return jsonify({'success': False, 'message': 'Không có quyền chỉnh sửa chiến dịch này!'}), 403
 
         CampaignModel.update(campaign_id, name, platform, target_link, budget, spent, status, start_date, end_date)
@@ -551,7 +437,7 @@ def delete_campaign(campaign_id):
         return jsonify({'success': False, 'message': 'Không tìm thấy chiến dịch!'}), 404
     try:
         CampaignModel.delete(campaign_id)
-        return jsonify({'success': True, 'message': f'Đã xóa chiến dịch "{cam.name}" thành công!'})
+        return jsonify({'success': True, 'message': f'Đã xóa chiến dịch "{cam["name"]}" thành công!'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
 
@@ -570,14 +456,6 @@ def campaign_efficiency(campaign_id):
 # Page Routes — Customers
 # ─────────────────────────────────────────────────────────────────────────────
 
-
-@admin_bp.route('/transactions')
-@require_role_page(['admin'])
-def transaction_manage():
-    """Trang quản lý nạp tiền (Admin)."""
-    return render_template('admin/transaction_manage.html')
-
-
 @admin_bp.route('/customers')
 @require_role_page(['admin', 'marketer'])
 def customers():
@@ -595,21 +473,12 @@ def users_page():
 @require_role_api(['admin'])
 def get_users():
     """Lấy danh sách user kèm thông tin khách hàng liên kết."""
-    try:
-        users = UserModel.get_all()
-        # Chuyển đổi created_at sang string
-        for u in users:
-            if u.get('created_at'):
-                if hasattr(u['created_at'], 'strftime'):
-                    u['created_at'] = u['created_at'].strftime('%Y-%m-%d %H:%M')
-                else:
-                    u['created_at'] = str(u['created_at'])
-            else:
-                u['created_at'] = '—'
-        return jsonify(users)
-    except Exception as e:
-        import traceback
-        return jsonify({'success': False, 'message': f"Lỗi lấy danh sách user: {str(e)}", 'trace': traceback.format_exc()}), 500
+    users = UserModel.get_all()
+    # Chuyển đổi created_at sang string
+    for u in users:
+        if u['created_at']:
+            u['created_at'] = u['created_at'].strftime('%Y-%m-%d %H:%M')
+    return jsonify(users)
 
 
 @admin_bp.route('/api/users/add', methods=['POST'])
@@ -629,7 +498,6 @@ def add_user():
         
     try:
         UserModel.create(username, password, role, customer_id)
-        AuditLogModel.log(session['user_id'], 'CREATE_USER', 'users', None, None, {'username': username, 'role': role})
         return jsonify({'success': True, 'message': f'Đã tạo tài khoản "{username}" thành công!'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -670,7 +538,7 @@ def platforms_page():
 
 
 @admin_bp.route('/api/platforms')
-@require_role_api(['admin', 'marketer', 'client'])
+@require_role_api(['admin', 'marketer'])
 def get_platforms():
     return jsonify(PlatformModel.get_all())
 
@@ -740,14 +608,6 @@ def log_spending_api():
         return jsonify({'success': False, 'message': 'Thiếu thông tin chiến dịch hoặc ngày!'}), 400
 
     try:
-        # KIỂM TRA TRẠNG THÁI DUYỆT
-        cam_obj = CampaignModel.get_by_id(cam_id)
-        if not cam_obj:
-            return jsonify({'success': False, 'message': 'Không tìm thấy chiến dịch!'}), 404
-            
-        if cam_obj.status == 'Chờ duyệt' or cam_obj.approval_status == 'pending':
-            return jsonify({'success': False, 'message': 'Không thể cập nhật chi phí cho chiến dịch chưa được duyệt!'}), 400
-
         # 1. Lưu vào daily_spending
         SpendingModel.log_daily_spending(cam_id, date, spent, clicks, impr)
         
@@ -756,25 +616,12 @@ def log_spending_api():
         CampaignModel.update_spent(cam_id, total_spent)
         
         # 3. Kiểm tra ngân sách để gửi cảnh báo nếu cần
-        cam_obj = CampaignModel.get_by_id(cam_id)
-        if cam_obj:
-            check_budget_and_notify(cam_obj, total_spent)
+        check_budget_and_notify(cam_id)
         
         return jsonify({'success': True, 'message': 'Đã cập nhật báo cáo thành công!'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@admin_bp.route('/api/log-spending/recent')
-@require_role_api(['admin', 'marketer'])
-def get_recent_spending_logs():
-    """Lấy danh sách các bản ghi chi tiêu mới nhập gần đây."""
-    marketer_id = session['user_id'] if session['role'] == 'marketer' else None
-    logs = SpendingModel.get_recent_logs(limit=10, marketer_id=marketer_id)
-    # Serialize dates
-    for l in logs:
-        if l.get('report_date') and hasattr(l['report_date'], 'strftime'):
-            l['report_date'] = l['report_date'].strftime('%Y-%m-%d')
-    return jsonify(logs)
 
 
 @admin_bp.route('/api/customers/<int:customer_id>/campaigns')
@@ -853,7 +700,7 @@ def update_customer(customer_id):
     if session['role'] != 'admin':
         old_val = CustomerModel.get_by_id(customer_id)
         if old_val:
-            marketer_id = old_val.marketer_id
+            marketer_id = old_val.get('marketer_id')
 
     if not name:
         return jsonify({'success': False, 'message': 'Tên khách hàng không được để trống!'}), 400
@@ -895,7 +742,6 @@ def get_marketers():
 
 @admin_bp.route('/api/deposit', methods=['POST'])
 @require_role_api(['client'])
-@limiter.limit("5 per minute")
 def deposit():
     """API nạp tiền có bằng chứng chuyển khoản."""
     amount = request.form.get('amount')
@@ -928,13 +774,20 @@ def deposit():
             proof_image=proof_url,
             status='pending'
         )
-        return jsonify({'success': True, 'message': 'Yêu cầu nạp tiền đã được gửi, vui lòng chờ Admin phê duyệt.'})
+
+        AuditLogModel.log(session['user_id'], 'DEPOSIT_REQUEST', 'transactions', None, 
+                          None, {'amount': amount, 'method': method})
+        
+        return jsonify({'success': True, 'message': 'Yêu cầu nạp tiền đã được gửi! Vui lòng chờ Admin phê duyệt.'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-
-
+@admin_bp.route('/transactions')
+@require_role_page(['admin'])
+def transaction_manage():
+    """Trang quản lý nạp tiền (Admin)."""
+    return render_template('admin/transaction_manage.html')
 
 
 @admin_bp.route('/api/transactions')
@@ -947,48 +800,29 @@ def get_transactions():
 
 
 @admin_bp.route('/api/transactions/<int:tx_id>/approve', methods=['POST'])
-@require_role_api(['admin', 'marketer'])
+@require_role_api(['admin'])
 def approve_transaction(tx_id):
-    """
-    Phê duyệt giao dịch nạp tiền (Quy trình 2 lớp).
-    - Marketer: Xác nhận chứng từ (pending -> confirmed)
-    - Admin: Duyệt cộng tiền (confirmed -> completed)
-    """
+    """Phê duyệt giao dịch nạp tiền."""
     tx = TransactionModel.get_by_id(tx_id)
-    if not tx:
-        return jsonify({'success': False, 'message': 'Giao dịch không tồn tại!'}), 404
-        
-    role = session.get('role')
+    if not tx or tx['status'] != 'pending':
+        return jsonify({'success': False, 'message': 'Giao dịch không hợp lệ hoặc đã xử lý!'}), 400
     
     try:
-        if role == 'marketer':
-            if tx.status != 'pending':
-                return jsonify({'success': False, 'message': 'Chỉ có thể xác nhận giao dịch đang chờ!'}), 400
-            TransactionModel.update_status(tx_id, 'confirmed')
-            AuditLogModel.log(session['user_id'], 'MARKETER_CONFIRM_DEPOSIT', 'transactions', tx_id)
-            return jsonify({'success': True, 'message': 'Đã xác nhận chứng từ, chờ Admin phê duyệt cuối.'})
-            
-        elif role == 'admin':
-            # Admin có thể duyệt thẳng hoặc duyệt từ confirmed
-            if tx.status not in ['pending', 'confirmed']:
-                return jsonify({'success': False, 'message': 'Giao dịch đã được xử lý!'}), 400
-                
-            # 1. Cập nhật số dư khách hàng
-            CustomerModel.deposit(tx.customer_id, tx.amount)
-            
-            # 2. Cập nhật trạng thái giao dịch
-            TransactionModel.update_status(tx_id, 'completed')
-            
-            # 3. Tạo thông báo & Socket.io
-            socketio.emit('payment_approved', {
-                'customer_id': tx.customer_id,
-                'amount': tx.amount,
-                'message': f'Nạp tiền thành công: {tx.amount:,.0f} VNĐ'
-            })
-            
-            AuditLogModel.log(session['user_id'], 'ADMIN_APPROVE_DEPOSIT', 'transactions', tx_id)
-            return jsonify({'success': True, 'message': 'Đã phê duyệt và cộng tiền thành công!'})
-            
+        # 1. Cập nhật số dư khách hàng
+        CustomerModel.deposit(tx['customer_id'], tx['amount'])
+        
+        # 2. Cập nhật trạng thái giao dịch
+        TransactionModel.update_status(tx_id, 'completed')
+        
+        # 3. Tạo thông báo cho khách hàng
+        user = DBModel.fetch_one("SELECT id FROM users WHERE customer_id = %s", (tx['customer_id'],))
+        if user:
+            NotificationModel.create(user['id'], "Nạp tiền thành công", 
+                                     f"Yêu cầu nạp {tx['amount']:,.0f} VNĐ của bạn đã được phê duyệt.", "success")
+        
+        AuditLogModel.log(session['user_id'], 'APPROVE_DEPOSIT', 'transactions', tx_id, None, {'amount': tx['amount']})
+        
+        return jsonify({'success': True, 'message': 'Đã phê duyệt và cộng tiền thành công!'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -1001,16 +835,16 @@ def reject_transaction(tx_id):
     reason = data.get('reason', 'Không rõ lý do')
     
     tx = TransactionModel.get_by_id(tx_id)
-    if not tx or tx.status != 'pending':
+    if not tx or tx['status'] != 'pending':
         return jsonify({'success': False, 'message': 'Giao dịch không hợp lệ hoặc đã xử lý!'}), 400
     
     try:
         TransactionModel.update_status(tx_id, 'rejected', reason)
         
-        user = DBModel.fetch_one("SELECT id FROM users WHERE customer_id = %s", (tx.customer_id,))
+        user = DBModel.fetch_one("SELECT id FROM users WHERE customer_id = %s", (tx['customer_id'],))
         if user:
             NotificationModel.create(user['id'], "Yêu cầu nạp tiền bị từ chối", 
-                                     f"Yêu cầu nạp {tx.amount:,.0f} VNĐ bị từ chối. Lý do: {reason}", "error")
+                                     f"Yêu cầu nạp {tx['amount']:,.0f} VNĐ bị từ chối. Lý do: {reason}", "error")
             
         AuditLogModel.log(session['user_id'], 'REJECT_DEPOSIT', 'transactions', tx_id, None, {'reason': reason})
         
@@ -1072,10 +906,6 @@ def log_daily(campaign_id):
     if not cam:
         return jsonify({'success': False, 'message': 'Không tìm thấy chiến dịch!'}), 404
 
-    # KIỂM TRA TRẠNG THÁI DUYỆT
-    if cam.status == 'Chờ duyệt' or cam.approval_status == 'pending':
-        return jsonify({'success': False, 'message': 'Chiến dịch chưa được duyệt, không thể ghi nhận báo cáo!'}), 400
-
     data = request.json or {}
 
     try:
@@ -1094,8 +924,8 @@ def log_daily(campaign_id):
     DailyReportModel.log_daily(campaign_id, report_date, daily_spent, clicks, impressions, conversions)
 
     # Cộng dồn vào cột spent của campaigns
-    new_spent = float(cam.spent or 0) + daily_spent
-    budget    = float(cam.budget or 1)
+    new_spent = float(cam['spent'] or 0) + daily_spent
+    budget    = float(cam['budget'] or 1)
     ratio     = new_spent / budget
 
     # Cập nhật spent
@@ -1104,31 +934,44 @@ def log_daily(campaign_id):
         (new_spent, campaign_id)
     )
 
-    # Kiểm tra ngưỡng cảnh báo & Kill-switch
-    from app.extensions import socketio
-
-    # 1. Campaign Budget Alert
+    notification_msg = None
+    # Kiểm tra ngưỡng cảnh báo
     if ratio >= 1.0:
-        DBModel.execute("UPDATE campaigns SET status = 'Tạm dừng' WHERE id = %s", (campaign_id,))
-        msg = f"Chiến dịch \"{cam.name}\" đã hết ngân sách. Tự động tạm dừng!"
-        socketio.emit('budget_exceeded', {'campaign_id': campaign_id, 'message': msg})
+        # Vượt ngân sách → tạm dừng chiến dịch
+        DBModel.execute(
+            "UPDATE campaigns SET status = 'Tạm dừng' WHERE id = %s AND status != 'Tạm dừng'",
+            (campaign_id,)
+        )
+        msg = (f"Chiến dịch \"{cam['name']}\" đã vượt ngân sách "
+               f"({new_spent:,.0f} / {budget:,.0f} VND). Tự động tạm dừng!")
+        NotificationModel.create(campaign_id, NotificationModel.TYPE_BUDGET_EXCEEDED, msg)
+        notification_msg = msg
     elif ratio >= 0.9:
-        msg = f"Chiến dịch \"{cam.name}\" đã tiêu 90% ngân sách."
-        socketio.emit('budget_warning', {'campaign_id': campaign_id, 'message': msg})
+        # Cảnh báo ngưỡng 90%
+        msg = (f"Chiến dịch \"{cam['name']}\" đã dùng {ratio*100:.1f}% ngân sách "
+               f"({new_spent:,.0f} / {budget:,.0f} VND). Cần theo dõi!")
+        # Chỉ tạo 1 thông báo mỗi ngày (kiểm tra trùng theo ngày)
+        existing = DBModel.fetch_one(
+            "SELECT id FROM notifications WHERE campaign_id=%s AND type=%s AND DATE(created_at)=CURDATE()",
+            (campaign_id, NotificationModel.TYPE_BUDGET_WARNING)
+        )
+        if not existing:
+            NotificationModel.create(campaign_id, NotificationModel.TYPE_BUDGET_WARNING, msg)
+            notification_msg = msg
+            # Gửi cảnh báo Telegram
+            check_budget_and_notify(cam, new_spent)
 
-    # 2. Customer Balance Kill-switch
-    cust = CustomerModel.get_by_id(cam.customer_id)
-    if cust and float(cust.balance) <= 0:
-        DBModel.execute("UPDATE campaigns SET status = 'Tạm dừng' WHERE customer_id = %s", (cust.id,))
-        socketio.emit('balance_exhausted', {
-            'customer_name': cust.name,
-            'message': f'Khách hàng {cust.name} đã hết số dư. Tất cả chiến dịch đã dừng.'
-        })
+    response = {
+        'success': True,
+        'message': f'Đã ghi nhận chi phí {daily_spent:,.0f} VND!',
+        'new_spent': new_spent,
+        'ratio': round(ratio, 4),
+        'status': 'exceeded' if ratio >= 1.0 else ('warning' if ratio >= 0.9 else 'ok'),
+    }
+    if notification_msg:
+        response['alert'] = notification_msg
 
-    AuditLogModel.log(session['user_id'], 'LOG_DAILY', 'daily_reports', campaign_id, None, 
-                      {'daily_spent': daily_spent, 'total_spent': new_spent})
-
-    return jsonify({'success': True, 'message': 'Ghi nhận báo cáo thành công!'})
+    return jsonify(response)
 
 
 
@@ -1145,37 +988,37 @@ def chart_spending_trend():
 
     if role == 'client' and cust_id:
         sql = """
-            SELECT dr.report_date, SUM(dr.daily_spent) AS total_spent
-            FROM   daily_reports dr
+            SELECT dr.date as report_date, SUM(dr.amount_spent) AS total_spent
+            FROM   daily_spending dr
             JOIN   campaigns c ON dr.campaign_id = c.id
             WHERE  c.customer_id = %s AND c.is_deleted = 0
-              AND  dr.report_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-            GROUP BY dr.report_date
-            ORDER BY dr.report_date ASC
+              AND  dr.date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+            GROUP BY dr.date
+            ORDER BY dr.date ASC
         """
         rows = DBModel.fetch_all(sql, (cust_id,))
     elif role == 'marketer':
         user_id = session.get('user_id')
         sql = """
-            SELECT dr.report_date, SUM(dr.daily_spent) AS total_spent
-            FROM   daily_reports dr
+            SELECT dr.date as report_date, SUM(dr.amount_spent) AS total_spent
+            FROM   daily_spending dr
             JOIN   campaigns c ON dr.campaign_id = c.id
             JOIN   customers cu ON c.customer_id = cu.id
             WHERE  cu.marketer_id = %s AND c.is_deleted = 0
-              AND  dr.report_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-            GROUP BY dr.report_date
-            ORDER BY dr.report_date ASC
+              AND  dr.date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+            GROUP BY dr.date
+            ORDER BY dr.date ASC
         """
         rows = DBModel.fetch_all(sql, (user_id,))
     else:
         sql = """
-            SELECT dr.report_date, SUM(dr.daily_spent) AS total_spent
-            FROM   daily_reports dr
+            SELECT dr.date as report_date, SUM(dr.amount_spent) AS total_spent
+            FROM   daily_spending dr
             JOIN   campaigns c ON dr.campaign_id = c.id
             WHERE  c.is_deleted = 0
-              AND  dr.report_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-            GROUP BY dr.report_date
-            ORDER BY dr.report_date ASC
+              AND  dr.date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+            GROUP BY dr.date
+            ORDER BY dr.date ASC
         """
         rows = DBModel.fetch_all(sql)
 
@@ -1323,81 +1166,38 @@ def campaign_detail(campaign_id):
     user_id = session.get('user_id')
 
     # Check permission for client
-    if role == 'client' and cam.customer_id != session.get('customer_id'):
+    if role == 'client' and cam['customer_id'] != session.get('customer_id'):
         return "Unauthorized", 403
     
     # Check permission for marketer
     if role == 'marketer':
-        cust = CustomerModel.get_by_id(cam.customer_id)
-        if not cust or cust.marketer_id != user_id:
+        cust = CustomerModel.get_by_id(cam['customer_id'])
+        if not cust or cust.get('marketer_id') != user_id:
             return "Unauthorized", 403
 
     creatives  = CreativeModel.get_by_campaign(campaign_id)
     platforms  = CampaignPlatformModel.get_by_campaign(campaign_id)
     
-    # [HOTFIX] Auto-migration: Nếu chưa có dữ liệu n-n nhưng campaign cũ có platform, tự động tạo record
-    if not platforms and cam.platform:
-        # Tìm platform_id từ tên
-        p_row = DBModel.fetch_one("SELECT id FROM platforms WHERE name = %s", (cam.platform,))
-        if not p_row:
-            # Thử tìm tương đối nếu không khớp tuyệt đối
-            p_row = DBModel.fetch_one("SELECT id FROM platforms WHERE name LIKE %s", (f"{cam.platform}%",))
-            
-        if p_row:
-            CampaignPlatformModel.add(campaign_id, p_row['id'], cam.budget)
-            platforms = CampaignPlatformModel.get_by_campaign(campaign_id)
-    
     # Tính trạng thái thanh toán
     customer_balance = 0.0
     payment_status   = 'pending'
-    if cam.customer_id:
-        cust_data = CustomerModel.get_by_id(cam.customer_id)
+    if cam.get('customer_id'):
+        cust_data = CustomerModel.get_by_id(cam['customer_id'])
         if cust_data:
-            customer_balance = float(cust_data.balance or 0)
+            customer_balance = float(cust_data.get('balance') or 0)
     if platforms:
         payment_status = CampaignPlatformModel.compute_payment_status(campaign_id, customer_balance)
-        # Lưu lại vào DB nếu thay đổi (bọc trong try-except phòng trường hợp cột chưa tồn tại)
-        try:
-            if cam.payment_status != payment_status:
-                DBModel.execute("UPDATE campaigns SET payment_status = %s WHERE id = %s",
-                                (payment_status, campaign_id))
-        except:
-            pass
-    
-    # Tự động dừng nếu hết ngân sách (Enforce budget limit)
-    if float(cam.spent or 0) >= float(cam.budget or 0.1) and cam.status == 'Đang chạy':
-        try:
-            DBModel.execute("UPDATE campaigns SET status = 'Hết ngân sách' WHERE id = %s", (campaign_id,))
-            cam.status = 'Hết ngân sách'
-        except:
-            pass
-    
-    from app.models.daily_report import DailyReportModel
-    metrics = DailyReportModel.get_total_metrics(campaign_id)
-    raw_logs = DailyReportModel.get_last_7_days(campaign_id)
-    
-    # Map keys for template compatibility (amount_spent)
-    logs = []
-    for l in raw_logs:
-        logs.append({
-            'date': l['report_date'],
-            'amount_spent': l['daily_spent'],
-            'clicks': l['clicks']
-        })
-    
-    # Nếu chưa duyệt, zero out metrics
-    if cam.status == 'Chờ duyệt' or cam.approval_status == 'pending':
-        metrics = {'total_clicks': 0, 'total_impressions': 0, 'total_conversions': 0}
-        logs    = []
-    
+        # Lưu lại vào DB nếu thay đổi
+        if cam.get('payment_status') != payment_status:
+            DBModel.execute("UPDATE campaigns SET payment_status = %s WHERE id = %s",
+                            (payment_status, campaign_id))
+
     return render_template('admin/campaign_detail.html',
                            campaign=cam,
                            creatives=creatives,
                            platforms=platforms,
                            payment_status=payment_status,
-                           customer_balance=customer_balance,
-                           metrics=metrics,
-                           logs=logs)
+                           customer_balance=customer_balance)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1470,7 +1270,7 @@ def approve_campaign(campaign_id):
     try:
         # Cập nhật cả approval_status (cho logic cũ) và status (cho UI mới)
         DBModel.execute("UPDATE campaigns SET approval_status = 'active', status = 'Đang chạy' WHERE id = %s", (campaign_id,))
-        AuditLogModel.log(session['user_id'], 'APPROVE_CAMPAIGN', 'campaigns', campaign_id, cam.approval_status, 'active')
+        AuditLogModel.log(session['user_id'], 'APPROVE_CAMPAIGN', 'campaigns', campaign_id, cam.get('approval_status'), 'active')
         return jsonify({'success': True, 'message': 'Chiến dịch đã được duyệt thành công!'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -1486,7 +1286,7 @@ def reject_campaign(campaign_id):
         
     try:
         DBModel.execute("UPDATE campaigns SET approval_status = 'paused', status = 'Từ chối' WHERE id = %s", (campaign_id,))
-        AuditLogModel.log(session['user_id'], 'REJECT_CAMPAIGN', 'campaigns', campaign_id, cam.approval_status, 'paused')
+        AuditLogModel.log(session['user_id'], 'REJECT_CAMPAIGN', 'campaigns', campaign_id, cam.get('approval_status'), 'paused')
         return jsonify({'success': True, 'message': 'Đã từ chối chiến dịch!'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -1671,92 +1471,37 @@ def get_campaign_results(campaign_id):
     if not cam:
         return jsonify({'success': False, 'message': 'Không tìm thấy chiến dịch!'}), 404
 
-    if session['role'] == 'client' and cam.customer_id != session.get('customer_id'):
+    if session['role'] == 'client' and cam['customer_id'] != session.get('customer_id'):
         return jsonify({'success': False, 'message': 'Không có quyền!'}), 403
-
-    # Nếu chiến dịch chưa được duyệt, trả về kết quả trống
-    if cam.status == 'Chờ duyệt' or cam.approval_status == 'pending':
-        return jsonify({
-            'success': True,
-            'chart': {'dates': [], 'by_platform': {}},
-            'summary': {
-                'total_budget': float(cam.budget or 0),
-                'total_spent': 0,
-                'total_clicks': 0,
-                'total_impressions': 0,
-                'ctr': 0,
-                'cpc': 0,
-                'spent_pct': 0,
-            },
-            'platforms': [],
-        })
 
     days = int(request.args.get('days', 30))
     
     # 1. Dữ liệu biểu đồ theo ngày × nền tảng
     chart_raw = CampaignPlatformModel.get_daily_chart_data(campaign_id, days)
     
-    # FALLBACK: Nếu không có dữ liệu chi tiêu theo nền tảng, lấy dữ liệu tổng từ daily_reports
-    if not chart_raw:
-        from app.models.daily_report import DailyReportModel
-        trend = DailyReportModel.get_last_7_days(campaign_id) # Trả về list dict với report_date, daily_spent...
-        chart_raw = []
-        for t in trend:
-            chart_raw.append({
-                'date': t['report_date'],
-                'platform_name': 'Tổng hợp (Global)',
-                'daily_spent': t['daily_spent'],
-                'daily_clicks': t['clicks'],
-                'daily_impressions': t['impressions']
-            })
-
     # Pivot: { platform_name: { date: { spent, clicks, impressions } } }
     chart_by_platform = {}
+    all_dates = sorted(set(str(r['date']) for r in chart_raw))
     
-    # Đảm bảo date là string YYYY-MM-DD
-    processed_chart_raw = []
     for r in chart_raw:
-        d_val = r['date']
-        if hasattr(d_val, 'strftime'):
-            d_str = d_val.strftime('%Y-%m-%d')
-        else:
-            d_str = str(d_val)
-        
-        processed_chart_raw.append({
-            'date_str': d_str,
-            'platform_name': r['platform_name'],
-            'spent': float(r['daily_spent'] or 0),
-            'clicks': int(r['daily_clicks'] or 0),
-            'impressions': int(r['daily_impressions'] or 0)
-        })
-
-    all_dates = sorted(list(set(r['date_str'] for r in processed_chart_raw)))
-    
-    for r in processed_chart_raw:
         pname = r['platform_name']
-        dstr  = r['date_str']
+        date  = str(r['date'])
         if pname not in chart_by_platform:
             chart_by_platform[pname] = {}
-        chart_by_platform[pname][dstr] = {
-            'spent':       r['spent'],
-            'clicks':      r['clicks'],
-            'impressions': r['impressions'],
+        chart_by_platform[pname][date] = {
+            'spent':       float(r['daily_spent'] or 0),
+            'clicks':      int(r['daily_clicks'] or 0),
+            'impressions': int(r['daily_impressions'] or 0),
         }
 
     # 2. Tổng hợp theo nền tảng
     platforms_stats = CampaignPlatformModel.get_by_campaign(campaign_id)
     
     # 3. Tổng toàn chiến dịch
-    total_clicks      = float(sum(p.get('total_clicks', 0) for p in platforms_stats))
-    total_impressions = float(sum(p.get('total_impressions', 0) for p in platforms_stats))
-    
-    # FALLBACK cho summary nếu chưa có platform stats
-    if not platforms_stats or (total_clicks == 0 and total_impressions == 0):
-        m = DailyReportModel.get_total_metrics(campaign_id)
-        total_clicks = float(m['total_clicks'] or 0)
-        total_impressions = float(m['total_impressions'] or 0)
-    total_spent       = float(cam.spent or 0)
-    total_budget      = float(cam.budget or 1)
+    total_clicks      = sum(p.get('total_clicks', 0) for p in platforms_stats)
+    total_impressions = sum(p.get('total_impressions', 0) for p in platforms_stats)
+    total_spent       = float(cam.get('spent') or 0)
+    total_budget      = float(cam.get('budget') or 1)
 
     # Serialize datetime
     for p in platforms_stats:
@@ -1790,14 +1535,14 @@ def get_payment_status(campaign_id):
     if not cam:
         return jsonify({'success': False, 'message': 'Không tìm thấy chiến dịch!'}), 404
 
-    if session['role'] == 'client' and cam.customer_id != session.get('customer_id'):
+    if session['role'] == 'client' and cam['customer_id'] != session.get('customer_id'):
         return jsonify({'success': False, 'message': 'Không có quyền!'}), 403
 
     customer_balance = 0.0
-    if cam.customer_id:
-        cust_data = CustomerModel.get_by_id(cam.customer_id)
+    if cam.get('customer_id'):
+        cust_data = CustomerModel.get_by_id(cam['customer_id'])
         if cust_data:
-            customer_balance = float(cust_data.balance or 0)
+            customer_balance = float(cust_data.get('balance') or 0)
 
     total_alloc    = CampaignPlatformModel.get_total_alloc(campaign_id)
     payment_status = CampaignPlatformModel.compute_payment_status(campaign_id, customer_balance)
@@ -1881,106 +1626,3 @@ def add_campaign_v2():
         return jsonify({'success': True, 'message': f'Đã tạo chiến dịch "{name}" trên {len(platforms)} nền tảng!', 'id': new_id})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
-
-@admin_bp.route('/api/dashboard/smart-stats')
-@require_role_api(['admin', 'marketer'])
-def get_smart_stats():
-    """Lấy các chỉ số thông minh cho Dashboard: Xu hướng, Cảnh báo, Dự báo."""
-    try:
-        # 1. Tổng ngân sách & Chi tiêu (toàn hệ thống)
-        managed = DailyReportModel.get_total_managed_budget()
-        total_budget = float(managed['total_budget'] or 0)
-        total_spent   = float(managed['total_spent'] or 0)
-        
-        # 2. Đếm các yêu cầu chờ xử lý & Chiến dịch chạy
-        pending_tx = DBModel.fetch_one("SELECT COUNT(*) as count FROM transactions WHERE status = 'pending'")
-        pending_cams = DBModel.fetch_one("SELECT COUNT(*) as count FROM campaigns WHERE status = 'Đang chờ duyệt' AND is_deleted = 0")
-        active_cams = DBModel.fetch_one("SELECT COUNT(*) as count FROM campaigns WHERE status = 'Đang chạy' AND is_deleted = 0")
-        
-        # 3. Biến động CPC/CPA
-        fluctuations = DailyReportModel.get_cpc_cpa_fluctuations()
-        
-        # 4. Dự báo dòng tiền
-        cashflow = DailyReportModel.get_cashflow_forecast()
-
-        return jsonify({
-            'success': True,
-            'managed': {
-                'total_budget': total_budget,
-                'total_spent': total_spent,
-                'spent_ratio': round((total_spent / total_budget * 100), 1) if total_budget > 0 else 0
-            },
-            'pending_count': (pending_tx['count'] or 0) + (pending_cams['count'] or 0),
-            'active_count': active_cams['count'] or 0,
-            'fluctuations': fluctuations,
-            'cashflow': cashflow
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-
-from app.extensions import db, migrate, socketio, csrf
-
-
-@admin_bp.route('/api/campaigns/<int:campaign_id>/apply-ai', methods=['POST'])
-@csrf.exempt
-@require_role_api(['admin', 'marketer', 'client'])
-def apply_ai_optimization(campaign_id):
-    """
-    Giả lập tối ưu hóa AI: Tăng số lượt click và chi tiêu cho chiến dịch.
-    Điều này giúp hiển thị dữ liệu trên biểu đồ và tăng kết quả thực tế.
-    """
-    cam = CampaignModel.get_by_id(campaign_id)
-    if not cam:
-        return jsonify({'success': False, 'message': 'Không tìm thấy chiến dịch!'}), 404
-
-    try:
-        from datetime import datetime, timedelta
-        import random
-        
-        # Tạo dữ liệu giả cho 7 ngày gần nhất nếu chưa có, hoặc cộng dồn nếu đã có
-        total_added_spent = 0
-        for i in range(6, -1, -1):
-            report_date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
-            
-            # Giả lập tăng trưởng: ngày càng tăng clicks
-            base_clicks = 10 + (6-i)*5 
-            added_clicks = random.randint(base_clicks, base_clicks + 10)
-            added_spent = added_clicks * random.randint(1000, 2500) # CPC từ 1k-2.5k
-            added_impressions = added_clicks * random.randint(15, 40) # CTR 2.5-6.6%
-            added_conversions = random.randint(0, max(1, added_clicks // 15))
-            
-            DailyReportModel.log_daily(campaign_id, report_date, added_spent, added_clicks, added_impressions, added_conversions)
-            total_added_spent += added_spent
-            
-        # 1. Cập nhật spent tổng của campaign
-        DBModel.execute("UPDATE campaigns SET spent = COALESCE(spent, 0) + %s WHERE id = %s", (total_added_spent, campaign_id))
-        
-        # 2. Kiểm tra ngân sách để dừng chiến dịch nếu vượt quá
-        cam_updated = CampaignModel.get_by_id(campaign_id)
-        budget = float(cam_updated['budget'] or 0)
-        spent  = float(cam_updated['spent'] or 0)
-        
-        if spent >= budget:
-            DBModel.execute("UPDATE campaigns SET status = 'Hết ngân sách' WHERE id = %s", (campaign_id,))
-            
-            # Gửi thông báo qua Socket.io
-            msg = f"Chiến dịch \"{cam_updated['name']}\" đã tiêu hết ngân sách ({spent:,.0f}/{budget:,.0f}đ). Hệ thống đã tự động dừng chạy!"
-            socketio.emit('budget_exceeded', {
-                'campaign_id': campaign_id,
-                'message': msg,
-                'customer_id': cam_updated['customer_id']
-            })
-            
-            # Tạo thông báo trong DB cho khách hàng
-            from app.models.notification import NotificationModel
-            cust_user = DBModel.fetch_one("SELECT id FROM users WHERE customer_id = %s", (cam_updated['customer_id'],))
-            if cust_user:
-                NotificationModel.create(cust_user['id'], "Hết ngân sách quảng cáo", msg, "error")
-
-        return jsonify({
-            'success': True, 
-            'message': 'Hệ thống AI đã tối ưu hóa. ' + ('Cảnh báo: Chiến dịch đã dừng do hết ngân sách!' if spent >= budget else 'Hiệu suất đã được cải thiện!')
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
