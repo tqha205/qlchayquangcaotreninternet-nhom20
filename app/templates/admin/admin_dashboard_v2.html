@@ -210,7 +210,7 @@ $(function() {
                             <p class="text-[10px] text-slate-400">${tx.customer_name} • ${tx.type}</p>
                         </div>
                     </div>
-                    <a href="{{ url_for('admin.transaction_manage') }}" class="opacity-0 group-hover:opacity-100 bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm text-amber-600 transition-opacity">
+                    <a href="{{ url_for('admin.transaction_manage') }}" class="bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm text-amber-600 transition-opacity">
                         <i data-lucide="check" class="w-4 h-4"></i>
                     </a>
                 </div>`;
@@ -227,7 +227,7 @@ $(function() {
                             <p class="text-[10px] text-slate-400">${c.customer_name} • ${c.platform}</p>
                         </div>
                     </div>
-                    <button onclick="approveCampaign(${c.id})" class="opacity-0 group-hover:opacity-100 bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm text-indigo-600 transition-opacity">
+                    <button onclick="approveCampaign(${c.id})" class="bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm text-indigo-600 transition-opacity">
                         <i data-lucide="check" class="w-4 h-4"></i>
                     </button>
                 </div>`;
@@ -244,7 +244,7 @@ $(function() {
                             <p class="text-[10px] text-slate-400">CD: ${cr.campaign_name}</p>
                         </div>
                     </div>
-                    <a href="/admin/campaigns/${cr.campaign_id}" class="opacity-0 group-hover:opacity-100 bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm text-emerald-600 transition-opacity">
+                    <a href="/admin/campaigns/${cr.campaign_id}" class="bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm text-emerald-600 transition-opacity">
                         <i data-lucide="eye" class="w-4 h-4"></i>
                     </a>
                 </div>`;

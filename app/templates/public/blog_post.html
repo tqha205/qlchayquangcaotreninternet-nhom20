@@ -2,147 +2,222 @@
 
 {% block title %}{{ post.title }} - Blog HTDADS{% endblock %}
 
+{% block head %}
+<style>
+    :root {
+        --blog-accent: #003399;
+        --blog-accent-red: #E3000F;
+    }
+    
+    .blog-hero {
+        height: 60vh;
+        min-height: 400px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .blog-hero-image {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+        background-color: #0F172A; /* Dark fallback */
+        filter: brightness(0.6);
+        transition: transform 10s ease-out;
+    }
+    
+    .blog-hero:hover .blog-hero-image {
+        transform: scale(1.1);
+    }
+    
+    .blog-hero-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to bottom, rgba(15, 23, 42, 0.4) 0%, rgba(15, 23, 42, 0.9) 100%);
+    }
+    
+    .glass-meta {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+    }
+    
+    .content-card {
+        margin-top: -100px;
+        position: relative;
+        z-index: 20;
+        background: white;
+        border-radius: 3rem;
+        box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .prose-custom p, .blog-rich-content p {
+        font-size: 1.125rem;
+        line-height: 1.8;
+        color: #475569;
+        margin-bottom: 1.5rem;
+    }
+    
+    .prose-custom h2, .blog-rich-content h2 {
+        font-size: 2rem;
+        font-weight: 900;
+        color: #0F172A;
+        margin-top: 3rem;
+        margin-bottom: 1.5rem;
+        letter-spacing: -0.02em;
+    }
+    
+    .prose-custom h3, .blog-rich-content h3 {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #1E293B;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .sidebar-widget {
+        background: #F8FAFC;
+        border-radius: 2rem;
+        padding: 2rem;
+        border: 1px solid #F1F5F9;
+    }
+    
+    .author-card {
+        background: linear-gradient(135deg, #003399 0%, #001A4D 100%);
+        border-radius: 2.5rem;
+        padding: 2.5rem;
+        color: white;
+    }
+
+    .accent-line {
+        width: 60px;
+        height: 4px;
+        background: var(--blog-accent-red);
+        border-radius: 2px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<section class="pt-20 pb-20 bg-gray-50">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        <!-- Breadcrumb -->
-        <nav class="flex text-sm text-gray-500 mb-8" aria-label="Breadcrumb">
-            <ol class="inline-flex items-center space-x-1 md:space-x-3">
-                <li class="inline-flex items-center">
-                    <a href="{{ url_for('public.index') }}" class="hover:text-brandblue flex items-center gap-1">
-                        <i data-lucide="home" class="w-4 h-4"></i> Trang chủ
-                    </a>
-                </li>
-                <li>
-                    <div class="flex items-center">
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
-                        <a href="{{ url_for('public.index') }}#blog" class="ml-1 md:ml-2 hover:text-brandblue">Blog</a>
-                    </div>
-                </li>
-                <li aria-current="page">
-                    <div class="flex items-center">
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
-                        <span class="ml-1 md:ml-2 text-gray-400 max-w-[200px] truncate" title="{{ post.title }}">{{ post.title }}</span>
-                    </div>
-                </li>
-            </ol>
-        </nav>
-
-        <!-- Article Container -->
-        <article class="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-            <!-- Header -->
-            <div class="p-8 md:p-12 border-b border-gray-100">
-                <div class="flex items-center gap-3 mb-6">
-                    <span class="px-3 py-1 text-xs font-bold bg-brandred/10 text-brandred rounded-full uppercase tracking-wider">
-                        Kiến thức Marketing
-                    </span>
-                    <span class="text-sm text-gray-400 flex items-center gap-1">
-                        <i data-lucide="calendar" class="w-4 h-4"></i> Hôm nay
-                    </span>
-                    <span class="text-sm text-gray-400 flex items-center gap-1">
-                        <i data-lucide="eye" class="w-4 h-4"></i> 1.2k lượt xem
-                    </span>
-                </div>
-                
-                <h1 class="text-3xl md:text-4xl lg:text-[40px] font-black text-slate-900 leading-tight mb-6">
-                    {{ post.title }}
-                </h1>
-                
-                <div class="flex items-center gap-4">
-                    <img src="https://ui-avatars.com/api/?name=HTDADS+Admin&background=003399&color=fff" alt="Admin" class="w-12 h-12 rounded-full ring-4 ring-gray-50">
-                    <div>
-                        <p class="font-bold text-slate-800">Biên tập viên HTDADS</p>
-                        <p class="text-xs text-gray-500">Chuyên gia Digital Marketing</p>
-                    </div>
-                </div>
+<!-- ═══ BLOG HERO ═══════════════════════════════════════════════ -->
+<section class="blog-hero flex items-end">
+    <div class="blog-hero-image" style="background-image: url('{{ post.image }}');"></div>
+    <!-- Fallback if source.unsplash fails -->
+    <div class="absolute inset-0 bg-slate-900 -z-10"></div>
+    <div class="blog-hero-overlay"></div>
+    
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pb-32 relative z-10">
+        <div class="max-w-3xl">
+            <div class="inline-flex items-center gap-2 px-3 py-1 glass-meta rounded-full text-xs font-black uppercase tracking-widest mb-6">
+                <span class="w-2 h-2 bg-brandred rounded-full animate-pulse"></span>
+                {{ post.category }}
             </div>
-
-            <!-- Video Player (If has_video) -->
-            {% if post.has_video %}
-            <div class="w-full aspect-video bg-black relative flex items-center justify-center">
-                <iframe 
-                    class="absolute inset-0 w-full h-full" 
-                    src="{{ post.video_url }}" 
-                    title="Video post" 
-                    frameborder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                    allowfullscreen>
-                </iframe>
-            </div>
-            {% else %}
-            <!-- Fallback Image -->
-            <div class="w-full h-[400px] overflow-hidden">
-                <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" alt="Article image" class="w-full h-full object-cover">
-            </div>
-            {% endif %}
-
-            <!-- Article Content -->
-            <div class="p-8 md:p-12 prose prose-lg max-w-none text-gray-600 prose-headings:text-brandblue prose-a:text-brandred">
-                <p class="text-xl leading-relaxed font-medium text-slate-700 mb-8 border-l-4 border-brandred pl-4">
-                    {{ post.content }}
-                </p>
-
-                <p>
-                    Digital Marketing không chỉ đơn thuần là chạy quảng cáo, nó là cả một nghệ thuật tối ưu và phân tích dữ liệu. Để thành công trong các nền tảng như Facebook, Google Ads, hay TikTok Ads, bạn cần nắm rõ <strong>hành vi người dùng</strong> và <strong>chiến lược đặt thầu (bidding)</strong> phù hợp.
-                </p>
-
-                <h3 class="text-2xl font-bold mt-10 mb-4">Tại sao video marketing trở nên quan trọng?</h3>
-                <p>
-                    Hiện nay, định dạng video mang lại tỷ lệ chuyển đổi (CR) cực cao. Thay vì đọc những dòng text dài, khách hàng thích xem các video review thực tế, ngắn gọn và cuốn hút. Hãy bắt đầu sản xuất nội dung video ngay từ hôm nay.
-                </p>
-                
-                <h3 class="text-2xl font-bold mt-10 mb-4">Các bước chuẩn bị:</h3>
-                <ul class="list-disc pl-6 space-y-2 mb-8">
-                    <li>Xác định mục tiêu rõ ràng (Tăng nhận diện thương hiệu hay chốt sale).</li>
-                    <li>Sáng tạo nội dung (Content, Hình ảnh, Video chất lượng).</li>
-                    <li>Thiết lập ngân sách và chuẩn bị công cụ đo lường (Pixels, Google Analytics).</li>
-                    <li>Test nhiều nhóm quảng cáo (A/B Testing).</li>
-                </ul>
-
-                <div class="bg-gray-50 p-6 rounded-2xl border-l-4 border-brandblue my-8 text-sm italic">
-                    "Tại HTDADS, chúng tôi luôn ưu tiên việc thử nghiệm và tối ưu liên tục thay vì chỉ đốt tiền vào một nội dung duy nhất."
+            <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-8 tracking-tight">
+                {{ post.title }}
+            </h1>
+            <div class="flex items-center gap-6 text-blue-100 text-sm font-bold">
+                <div class="flex items-center gap-2">
+                    <img src="https://ui-avatars.com/api/?name={{ post.author|urlencode }}&background=E3000F&color=fff" class="w-8 h-8 rounded-full">
+                    <span>{{ post.author }}</span>
                 </div>
+                <span class="opacity-30">|</span>
+                <span>12 Tháng 5, 2026</span>
+                <span class="opacity-30">|</span>
+                <span>5 Phút đọc</span>
             </div>
-
-            <!-- Footer & Share -->
-            <div class="px-8 md:px-12 py-6 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <span class="text-sm font-bold text-gray-500">Đánh giá: </span>
-                    <div class="flex text-amber-400">
-                        <i data-lucide="star" class="w-4 h-4 fill-current"></i>
-                        <i data-lucide="star" class="w-4 h-4 fill-current"></i>
-                        <i data-lucide="star" class="w-4 h-4 fill-current"></i>
-                        <i data-lucide="star" class="w-4 h-4 fill-current"></i>
-                        <i data-lucide="star" class="w-4 h-4 fill-current"></i>
-                    </div>
-                </div>
-                
-                <div class="flex items-center gap-3">
-                    <span class="text-sm font-bold text-gray-500">Chia sẻ bài viết:</span>
-                    <button class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-colors">
-                        <i data-lucide="facebook" class="w-4 h-4"></i>
-                    </button>
-                    <button class="w-8 h-8 rounded-full bg-sky-100 text-sky-500 flex items-center justify-center hover:bg-sky-500 hover:text-white transition-colors">
-                        <i data-lucide="twitter" class="w-4 h-4"></i>
-                    </button>
-                    <button class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-colors">
-                        <i data-lucide="link-2" class="w-4 h-4"></i>
-                    </button>
-                </div>
-            </div>
-        </article>
-
-        <!-- CTA Section under post -->
-        <div class="mt-12 bg-brandblue rounded-3xl p-8 md:p-12 text-center text-white shadow-xl relative overflow-hidden">
-            <div class="absolute inset-0 bg-white/5 opacity-50 blur-3xl transform scale-150 rotate-12"></div>
-            <h2 class="relative z-10 text-2xl md:text-3xl font-black mb-4">Bạn chưa biết bắt đầu từ đâu?</h2>
-            <p class="relative z-10 text-blue-100 mb-8 max-w-lg mx-auto">Đừng để đối thủ bỏ xa! Hãy để các chuyên gia tại HTDADS tư vấn giải pháp tốt nhất cho doanh nghiệp bạn ngay hôm nay.</p>
-            <a href="{{ url_for('public.contact') }}" class="relative z-10 inline-block bg-brandred text-white font-bold py-4 px-10 rounded-full hover:bg-red-700 hover:shadow-lg hover:shadow-red-500/50 hover:scale-105 transition-all">
-                Đăng ký nhận đánh giá miễn phí
-            </a>
         </div>
+    </div>
+</section>
 
+<!-- ═══ MAIN CONTENT ════════════════════════════════════════════ -->
+<section class="pb-32 bg-slate-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            
+            <!-- Content Card -->
+            <div class="lg:col-span-8">
+                <div class="content-card p-8 md:p-16 lg:p-20">
+                    <div class="accent-line mb-10"></div>
+                    
+                    <div class="prose-custom">
+                        <p class="text-2xl font-medium text-slate-800 leading-relaxed italic mb-12">
+                            "{{ post.content }}"
+                        </p>
+                        
+                        <div class="blog-rich-content">
+                            {{ post.full_text|safe }}
+                        </div>
+                    </div>
+
+                    <!-- Share Section -->
+                    <div class="mt-20 pt-10 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-6">
+                        <div class="flex items-center gap-4">
+                            <span class="text-sm font-black text-slate-400 uppercase tracking-widest">Chia sẻ bài viết</span>
+                            <div class="flex gap-2">
+                                <button class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 hover:bg-brandblue hover:text-white transition-all flex items-center justify-center"><i data-lucide="facebook" class="w-4 h-4"></i></button>
+                                <button class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 hover:bg-brandblue hover:text-white transition-all flex items-center justify-center"><i data-lucide="twitter" class="w-4 h-4"></i></button>
+                                <button class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 hover:bg-brandblue hover:text-white transition-all flex items-center justify-center"><i data-lucide="linkedin" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-4 py-2 bg-slate-50 rounded-lg text-xs font-bold text-slate-400 uppercase">#Marketing</span>
+                            <span class="px-4 py-2 bg-slate-50 rounded-lg text-xs font-bold text-slate-400 uppercase">#Business</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="lg:col-span-4 space-y-8">
+                
+                <!-- Author Widget -->
+                <div class="author-card">
+                    <img src="https://ui-avatars.com/api/?name={{ post.author|urlencode }}&background=fff&color=003399" class="w-20 h-20 rounded-3xl mb-6 shadow-xl">
+                    <h4 class="text-2xl font-black mb-2">{{ post.author }}</h4>
+                    <p class="text-blue-200 text-sm mb-6 leading-relaxed">Chuyên gia tư vấn chiến lược với hơn 10 năm kinh nghiệm trong ngành Marketing Tech.</p>
+                    <a href="{{ url_for('public.contact') }}" class="inline-flex items-center gap-2 text-brandred font-bold hover:gap-4 transition-all">
+                        Liên hệ tư vấn <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </a>
+                </div>
+
+                <!-- Related Posts Widget -->
+                <div class="sidebar-widget">
+                    <h4 class="text-xl font-black text-slate-900 mb-8 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-brandred rounded-full"></span>
+                        Bài viết mới nhất
+                    </h4>
+                    <div class="space-y-6">
+                        <a href="#" class="group block">
+                            <h5 class="font-bold text-slate-800 group-hover:text-brandblue transition-colors mb-2 line-clamp-2">Xu hướng Marketing Automation 2026: Tự động hóa hay Cá nhân hóa?</h5>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tin tức • 2 ngày trước</p>
+                        </a>
+                        <div class="h-[1px] bg-slate-200 w-full"></div>
+                        <a href="#" class="group block">
+                            <h5 class="font-bold text-slate-800 group-hover:text-brandblue transition-colors mb-2 line-clamp-2">Cách xây dựng hệ thống báo cáo Real-time chuẩn Agency</h5>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kiến thức • 5 ngày trước</p>
+                        </a>
+                        <div class="h-[1px] bg-slate-200 w-full"></div>
+                        <a href="#" class="group block">
+                            <h5 class="font-bold text-slate-800 group-hover:text-brandblue transition-colors mb-2 line-clamp-2">Tối ưu chi phí quảng cáo Zalo cho doanh nghiệp B2B</h5>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chiến thuật • 1 tuần trước</p>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- CTA Widget -->
+                <div class="p-10 rounded-[2.5rem] bg-brandred text-white relative overflow-hidden group">
+                    <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                    <h4 class="text-2xl font-black mb-4 relative z-10">Bắt đầu ngay hôm nay?</h4>
+                    <p class="text-red-100 text-sm mb-8 relative z-10 leading-relaxed">Hãy để HTDADS Agency giúp bạn tối ưu hóa ngân sách và tăng trưởng doanh thu vượt mong đợi.</p>
+                    <a href="{{ url_for('public.login_page') }}" class="inline-block px-8 py-4 bg-white text-brandred rounded-2xl font-bold hover:bg-slate-100 transition-all shadow-xl relative z-10">
+                        Dùng thử miễn phí
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 </section>
 {% endblock %}
+

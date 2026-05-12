@@ -4,137 +4,234 @@
 {% block page_title %}Cập nhật Báo cáo Ngày{% endblock %}
 {% block page_subtitle %}Nhập chi tiêu và hiệu quả quảng cáo hàng ngày cho các chiến dịch.{% endblock %}
 
+{% block head %}
+<style>
+    .indigo-gradient { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3"></div>
 
-<div class="max-w-2xl mx-auto">
-    <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden">
-        <div class="indigo-gradient p-10 text-white">
-            <div class="flex items-center gap-6">
-                <div class="bg-white/20 w-16 h-16 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20">
-                    <i data-lucide="bar-chart-3" class="w-8 h-8"></i>
-                </div>
-                <div>
-                    <h3 class="text-2xl font-black">Nhập dữ liệu vận hành</h3>
-                    <p class="text-indigo-100 text-sm mt-1">Dữ liệu sẽ được cộng dồn vào tổng chi tiêu chiến dịch.</p>
+<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 pb-20">
+    <!-- FORM COLUMN -->
+    <div class="lg:col-span-1 xl:col-span-1">
+        <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden sticky top-8">
+            <div class="indigo-gradient p-8 text-white">
+                <div class="flex items-center gap-4">
+                    <div class="bg-white/20 w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/20">
+                        <i data-lucide="edit-3" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-black">Cập nhật Chi phí</h3>
+                        <p class="text-indigo-100 text-xs mt-0.5">Nhập số liệu vận hành hàng ngày</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <form id="form-log" onsubmit="event.preventDefault(); submitLog();" class="p-10 space-y-6">
-            <!-- Campaign Selection -->
-            <div class="space-y-2">
-                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-4">Chọn chiến dịch đang chạy</label>
-                <div class="relative">
-                    <i data-lucide="target" class="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-500"></i>
-                    <select id="campaign-id" required class="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-primary focus:bg-white outline-none transition-all font-bold appearance-none">
+            <form id="form-log" onsubmit="event.preventDefault(); submitLog();" class="p-8 space-y-5">
+                <!-- Campaign Selection -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-2">Chiến dịch</label>
+                    <select id="campaign-id" required onchange="onCampaignChange()"
+                            class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold appearance-none">
                         <option value="">-- Chọn chiến dịch --</option>
                     </select>
                 </div>
+
+                <!-- Campaign Stats Context -->
+                <div id="campaign-context" class="hidden p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-black text-indigo-400 uppercase">Ngân sách</span>
+                        <span id="ctx-budget" class="text-xs font-black text-indigo-900">0đ</span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between items-center text-[10px]">
+                            <span class="font-black text-indigo-400 uppercase">Đã tiêu</span>
+                            <span id="ctx-spent-pct" class="font-black text-indigo-600">0%</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-white/50 rounded-full overflow-hidden">
+                            <div id="ctx-progress" class="h-full bg-indigo-600 transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-5">
+                    <!-- Date -->
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-2">Ngày báo cáo</label>
+                        <input type="date" id="log-date" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold">
+                    </div>
+
+                    <!-- Spent -->
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-2">Tiền tiêu (VNĐ)</label>
+                        <div class="relative">
+                            <input type="number" id="log-spent" required placeholder="0" 
+                                   class="w-full pl-4 pr-12 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Interactions Grid -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-2">Lượt Click</label>
+                            <input type="number" id="log-clicks" placeholder="0" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-2">Hiển thị</label>
+                            <input type="number" id="log-impr" placeholder="0" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-submit" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-3 mt-4">
+                    <i data-lucide="save" class="w-5 h-5"></i>
+                    Lưu dữ liệu
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- HISTORY COLUMN -->
+    <div class="lg:col-span-1 xl:col-span-2">
+        <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden h-fit">
+            <div class="px-8 py-6 border-b border-slate-50 flex justify-between items-center">
+                <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="history" class="w-5 h-5 text-indigo-500"></i>
+                    Dữ liệu vừa cập nhật
+                </h3>
+                <button onclick="loadRecentLogs()" class="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
             </div>
-
-            <div class="grid grid-cols-2 gap-6">
-                <!-- Date -->
-                <div class="col-span-2 space-y-2">
-                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-4">Ngày báo cáo</label>
-                    <input type="date" id="log-date" required class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-primary focus:bg-white outline-none transition-all font-bold">
-                </div>
-
-                <!-- Spent -->
-                <div class="space-y-2">
-                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-4">Tiền tiêu (VNĐ)</label>
-                    <input type="number" id="log-spent" required placeholder="0" class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-primary focus:bg-white outline-none transition-all font-bold">
-                </div>
-
-                <!-- Impressions -->
-                <div class="space-y-2">
-                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-4">Lượt hiển thị</label>
-                    <input type="number" id="log-impr" placeholder="0" class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-primary focus:bg-white outline-none transition-all font-bold">
-                </div>
-
-                <!-- Clicks -->
-                <div class="space-y-2">
-                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-4">Lượt click</label>
-                    <input type="number" id="log-clicks" placeholder="0" class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-primary focus:bg-white outline-none transition-all font-bold">
-                </div>
-                
-                <!-- Extra: Result info -->
-                <div class="space-y-2">
-                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-4">CPC Dự kiến</label>
-                    <div id="cpc-preview" class="w-full px-6 py-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl text-indigo-700 font-black">0đ</div>
-                </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-slate-50/50">
+                            <th class="px-6 py-4 text-[10px] font-black uppercase text-slate-400">Chiến dịch</th>
+                            <th class="px-6 py-4 text-[10px] font-black uppercase text-slate-400">Ngày</th>
+                            <th class="px-6 py-4 text-[10px] font-black uppercase text-slate-400 text-right">Chi phí</th>
+                            <th class="px-6 py-4 text-[10px] font-black uppercase text-slate-400 text-right">Click/Imp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-logs-list" class="divide-y divide-slate-50">
+                        <tr><td colspan="4" class="px-6 py-20 text-center text-slate-300 italic">Đang tải lịch sử...</td></tr>
+                    </tbody>
+                </table>
             </div>
-
-            <button type="submit" id="btn-submit" class="w-full bg-primary text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-3 mt-4">
-                <i data-lucide="save" class="w-6 h-6"></i>
-                Lưu báo cáo & Cập nhật
-            </button>
-        </form>
+        </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
+    let allActiveCampaigns = [];
+
     document.addEventListener('DOMContentLoaded', () => {
-        // Set default date to today
         document.getElementById('log-date').valueAsDate = new Date();
         loadActiveCampaigns();
-        
-        // CPC Preview logic
-        const spentInput = document.getElementById('log-spent');
-        const clickInput = document.getElementById('log-clicks');
-        const cpcPreview = document.getElementById('cpc-preview');
-
-        const updateCPC = () => {
-            const spent = parseFloat(spentInput.value) || 0;
-            const clicks = parseInt(clickInput.value) || 0;
-            if (clicks > 0) {
-                cpcPreview.textContent = Math.round(spent / clicks).toLocaleString() + 'đ';
-            } else {
-                cpcPreview.textContent = '0đ';
-            }
-        };
-
-        spentInput.addEventListener('input', updateCPC);
-        clickInput.addEventListener('input', updateCPC);
+        loadRecentLogs();
     });
 
     async function loadActiveCampaigns() {
         try {
             const res = await fetch("{{ url_for('admin.get_campaigns') }}");
-            const data = await res.json();
-            const active = data.filter(c => c.status === 'Đang chạy' || c.status === 'Hoạt động' || c.status === 'Active');
+            allActiveCampaigns = await res.json();
+            
+            const active = allActiveCampaigns.filter(c => c.status === 'Đang chạy' || c.status === 'Hoạt động' || c.status === 'Active');
             const select = document.getElementById('campaign-id');
             
             select.innerHTML = '<option value="">-- Chọn chiến dịch --</option>' + 
-                active.map(c => `<option value="${c.id}">${c.name} (${c.platform})</option>`).join('');
+                active.map(c => `<option value="${c.id}">${c.name} [${c.platform}]</option>`).join('');
+
+            // Check URL for campaign_id
+            const urlParams = new URLSearchParams(window.location.search);
+            const preId = urlParams.get('campaign_id');
+            if (preId) {
+                select.value = preId;
+                onCampaignChange();
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function onCampaignChange() {
+        const id = document.getElementById('campaign-id').value;
+        const ctx = document.getElementById('campaign-context');
+        if (!id) {
+            ctx.classList.add('hidden');
+            return;
+        }
+
+        const cam = allActiveCampaigns.find(c => c.id == id);
+        if (cam) {
+            ctx.classList.remove('hidden');
+            const budget = parseFloat(cam.budget || 0);
+            const spent = parseFloat(cam.spent || 0);
+            const pct = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+
+            document.getElementById('ctx-budget').textContent = new Intl.NumberFormat('vi-VN').format(budget) + 'đ';
+            document.getElementById('ctx-spent-pct').textContent = pct.toFixed(1) + '%';
+            document.getElementById('ctx-progress').style.width = pct + '%';
+        }
+    }
+
+    async function loadRecentLogs() {
+        try {
+            const res = await fetch("{{ url_for('admin.get_recent_spending_logs') }}");
+            const logs = await res.json();
+            const tbody = document.getElementById('recent-logs-list');
+            
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-slate-400">Chưa có dữ liệu nào được nhập.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = logs.map(l => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4">
+                        <p class="text-xs font-black text-slate-800">${l.campaign_name}</p>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">${l.platform}</span>
+                    </td>
+                    <td class="px-6 py-4 text-xs font-bold text-slate-500">${l.report_date}</td>
+                    <td class="px-6 py-4 text-xs font-black text-slate-800 text-right">${new Intl.NumberFormat('vi-VN').format(l.daily_spent)}đ</td>
+                    <td class="px-6 py-4 text-right">
+                        <span class="text-[10px] font-black text-indigo-600">${l.clicks} clicks</span><br>
+                        <span class="text-[10px] font-bold text-slate-400">${l.impressions} imps</span>
+                    </td>
+                </tr>
+            `).join('');
         } catch (e) { console.error(e); }
     }
 
     async function submitLog() {
         const btn = document.getElementById('btn-submit');
-        const originalText = btn.innerHTML;
+        const originalHTML = btn.innerHTML;
         
         const payload = {
             campaign_id: document.getElementById('campaign-id').value,
             date: document.getElementById('log-date').value,
             spent: document.getElementById('log-spent').value,
-            clicks: document.getElementById('log-clicks').value,
-            impressions: document.getElementById('log-impr').value
+            clicks: document.getElementById('log-clicks').value || 0,
+            impressions: document.getElementById('log-impr').value || 0
         };
 
         if (!payload.campaign_id) return showToast("Vui lòng chọn chiến dịch!", "error");
 
         btn.disabled = true;
-        btn.innerHTML = '<i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i> Đang lưu...';
+        btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Đang lưu...';
         lucide.createIcons();
 
         try {
             const res = await fetch("{{ url_for('admin.log_spending_api') }}", {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
@@ -143,12 +240,13 @@
                 document.getElementById('log-spent').value = '';
                 document.getElementById('log-clicks').value = '';
                 document.getElementById('log-impr').value = '';
-                document.getElementById('cpc-preview').textContent = '0đ';
+                loadRecentLogs();
+                loadActiveCampaigns(); // Refresh balance
             } else showToast(data.message, "error");
         } catch (e) { showToast("Lỗi kết nối!", "error"); }
         finally {
             btn.disabled = false;
-            btn.innerHTML = originalText;
+            btn.innerHTML = originalHTML;
             lucide.createIcons();
         }
     }
@@ -156,11 +254,16 @@
     function showToast(msg, type = 'success') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
-        const colors = { success: 'bg-emerald-500', error: 'bg-red-500' };
-        toast.className = `px-6 py-3 rounded-xl text-white font-medium shadow-xl transition-all animate-bounce ${colors[type]}`;
-        toast.textContent = msg;
+        const colors = { success: 'bg-indigo-600 shadow-indigo-100', error: 'bg-rose-500 shadow-rose-100' };
+        toast.className = `px-6 py-4 rounded-2xl text-white text-sm font-black shadow-2xl transition-all animate-bounce flex items-center gap-3 ${colors[type]}`;
+        toast.innerHTML = `<i data-lucide="${type==='success'?'check-circle':'alert-circle'}" class="w-5 h-5"></i> ${msg}`;
         container.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        lucide.createIcons();
+        setTimeout(() => {
+            toast.classList.remove('animate-bounce');
+            toast.classList.add('opacity-0', 'translate-x-10');
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
     }
 </script>
 {% endblock %}

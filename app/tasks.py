@@ -15,7 +15,16 @@ Cách chạy worker:
 import random
 import logging
 from datetime import datetime
+from celery import shared_task
+import sentry_sdk
 from celery_worker import celery
+
+# Cấu hình logging riêng cho Celery
+celery_logger = logging.getLogger('celery_worker')
+celery_logger.setLevel(logging.ERROR)
+handler = logging.FileHandler('logs/celery_error.log')
+handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+celery_logger.addHandler(handler)
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +80,8 @@ def sync_mock_data(self):
         return {"status": "ok", "campaigns_processed": len(campaigns)}
 
     except Exception as exc:
-        logger.error(f"[CELERY ERROR] sync_mock_data: {str(exc)}")
+        celery_logger.error(f"[CELERY ERROR] sync_mock_data: {str(exc)}")
+        sentry_sdk.capture_exception(exc)
         raise self.retry(exc=exc, countdown=30)
 
 
@@ -139,7 +149,8 @@ def budget_alert(self):
         return {"status": "ok"}
 
     except Exception as exc:
-        logger.error(f"[CELERY ERROR] budget_alert: {str(exc)}")
+        celery_logger.error(f"[CELERY ERROR] budget_alert: {str(exc)}")
+        sentry_sdk.capture_exception(exc)
         raise self.retry(exc=exc, countdown=30)
 
 
@@ -169,7 +180,8 @@ def send_telegram(self, message: str, chat_id: str = None):
         logger.info(f"[CELERY] Đã gửi Telegram: {message[:50]}...")
         return {"status": "sent"}
     except Exception as exc:
-        logger.error(f"[CELERY ERROR] send_telegram: {str(exc)}")
+        celery_logger.error(f"[CELERY ERROR] send_telegram: {str(exc)}")
+        sentry_sdk.capture_exception(exc)
         raise self.retry(exc=exc, countdown=60)
 
 
@@ -187,3 +199,29 @@ def _emit_socket_notification(user_ids: list, event: str, data: dict):
             socketio.emit(event, {**data, 'user_id': uid}, room=f"user_{uid}")
     except Exception as e:
         logger.debug(f"[SocketIO emit skipped]: {e}")
+@shared_task
+def aggregate_daily_spending():
+    """
+    Chạy định kỳ (00:01) để tổng hợp chi tiêu ngày hôm qua từ daily_spending
+    vào bảng daily_reports để tăng tốc độ Dashboard.
+    """
+    from app.models import DBModel
+    
+    # 1. Lấy dữ liệu ngày hôm qua
+    sql = """
+        INSERT INTO daily_reports (campaign_id, report_date, daily_spent, clicks, impressions, conversions)
+        SELECT campaign_id, date, SUM(amount_spent), SUM(clicks), SUM(impressions), SUM(conversions)
+        FROM daily_spending
+        WHERE date = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+        GROUP BY campaign_id, date
+        ON DUPLICATE KEY UPDATE 
+            daily_spent = VALUES(daily_spent),
+            clicks = VALUES(clicks),
+            impressions = VALUES(impressions),
+            conversions = VALUES(conversions)
+    """
+    try:
+        DBModel.execute(sql)
+        print("✅ Đã tổng hợp dữ liệu chi tiêu ngày hôm qua.")
+    except Exception as e:
+        print(f"❌ Lỗi tổng hợp dữ liệu: {e}")

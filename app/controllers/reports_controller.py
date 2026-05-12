@@ -44,70 +44,99 @@ def _date_range_params():
     return from_str, to_str
 
 
-def _get_summary(from_date, to_date, role, cust_id):
-    """Trả về dict tổng hợp và list chi tiết theo filter."""
-    where_extra = "AND c.customer_id = %s" if role == 'client' and cust_id else ""
-    params_base  = (from_date, to_date)
-    params_main  = (from_date, to_date, cust_id) if role == 'client' and cust_id else (from_date, to_date)
+def _get_summary(from_date, to_date, role, user_id, cust_id):
+    """Trả về dict tổng hợp và list chi tiết. Anchor dựa trên dữ liệu thực tế (Daily Reports)."""
+    where_role = ""
+    join_role = ""
+    params = [from_date, to_date]
 
-    # Tổng hợp
+    if role == 'client' and cust_id:
+        where_role = "AND c.customer_id = %s"
+        params.append(cust_id)
+    elif role == 'marketer':
+        where_role = "AND cu.marketer_id = %s"
+        join_role = "JOIN customers cu ON c.customer_id = cu.id"
+        params.append(user_id)
+
+    # 1. Tổng hợp: Lấy các chiến dịch CÓ DỮ LIỆU trong kỳ
     sql_summary = f"""
         SELECT
-            COUNT(*)                              AS total_campaigns,
-            COALESCE(SUM(budget), 0)              AS total_budget,
-            COALESCE(SUM(spent), 0)               AS total_spent,
-            COALESCE(AVG(spent/NULLIF(budget,0)), 0) AS avg_ratio
-        FROM campaigns c
-        WHERE (start_date <= %s OR start_date IS NULL)
-          AND (end_date   >= %s OR end_date   IS NULL)
-          {where_extra}
+            COUNT(DISTINCT c.id)                  AS total_campaigns,
+            COALESCE(SUM(dr.daily_spent), 0)     AS total_spent
+        FROM daily_reports dr
+        JOIN campaigns c ON dr.campaign_id = c.id
+        {join_role}
+        WHERE dr.report_date >= %s AND dr.report_date <= %s
+          AND c.is_deleted = 0
+          {where_role}
     """
-    summary = DBModel.fetch_one(sql_summary, params_main)
+    summary = DBModel.fetch_one(sql_summary, tuple(params))
 
-    # Breakdown theo platform
-    sql_platform = f"""
-        SELECT platform, COUNT(*) AS cnt,
-               COALESCE(SUM(budget),0) AS budget,
-               COALESCE(SUM(spent),0)  AS spent
+    # Tính tổng budget riêng để tránh bị nhân đôi do JOIN với daily_reports
+    sql_budget = f"""
+        SELECT COALESCE(SUM(budget), 0) AS total_budget
         FROM campaigns c
-        WHERE (start_date <= %s OR start_date IS NULL)
-          AND (end_date   >= %s OR end_date   IS NULL)
-          {where_extra}
-        GROUP BY platform
+        {join_role}
+        WHERE c.id IN (
+            SELECT DISTINCT campaign_id 
+            FROM daily_reports 
+            WHERE report_date >= %s AND report_date <= %s
+        )
+        AND c.is_deleted = 0
+        {where_role}
+    """
+    budget_data = DBModel.fetch_one(sql_budget, tuple(params))
+
+    # 2. Breakdown theo platform
+    sql_platform = f"""
+        SELECT c.platform, COUNT(DISTINCT c.id) AS cnt,
+               COALESCE(SUM(dr.daily_spent), 0) AS spent
+        FROM daily_reports dr
+        JOIN campaigns c ON dr.campaign_id = c.id
+        {join_role}
+        WHERE dr.report_date >= %s AND dr.report_date <= %s
+          AND c.is_deleted = 0
+          {where_role}
+        GROUP BY c.platform
         ORDER BY spent DESC
     """
-    platforms = DBModel.fetch_all(sql_platform, params_main)
+    platforms = DBModel.fetch_all(sql_platform, tuple(params))
 
-    # Chi tiết từng chiến dịch
+    # 3. Chi tiết từng chiến dịch
     sql_detail = f"""
         SELECT c.id, c.name, cu.name AS customer_name, c.platform,
-               c.budget, c.spent, c.status, c.start_date, c.end_date,
-               ROUND(c.spent/NULLIF(c.budget,0)*100, 1) AS spent_pct
-        FROM campaigns c
+               c.budget, COALESCE(SUM(dr.daily_spent), 0) as spent, c.status, c.start_date, c.end_date,
+               ROUND(COALESCE(SUM(dr.daily_spent), 0)/NULLIF(c.budget,0)*100, 1) AS spent_pct
+        FROM daily_reports dr
+        JOIN campaigns c ON dr.campaign_id = c.id
         LEFT JOIN customers cu ON c.customer_id = cu.id
-        WHERE (c.start_date <= %s OR c.start_date IS NULL)
-          AND (c.end_date   >= %s OR c.end_date   IS NULL)
-          {where_extra}
-        ORDER BY c.spent DESC
+        WHERE dr.report_date >= %s AND dr.report_date <= %s
+          AND c.is_deleted = 0
+          {where_role}
+        GROUP BY c.id
+        ORDER BY spent DESC, c.id DESC
     """
-    details = DBModel.fetch_all(sql_detail, params_main)
+    details = DBModel.fetch_all(sql_detail, tuple(params))
 
     def safe_float(v):
         try: return float(v or 0)
         except: return 0.0
 
+    total_spent = safe_float(summary['total_spent'])
+    total_budget = safe_float(budget_data['total_budget'])
+
     return {
         'summary': {
             'total_campaigns': int(summary['total_campaigns'] or 0),
-            'total_budget':    safe_float(summary['total_budget']),
-            'total_spent':     safe_float(summary['total_spent']),
-            'avg_ratio':       round(safe_float(summary['avg_ratio']) * 100, 1),
+            'total_budget':    total_budget,
+            'total_spent':     total_spent,
+            'avg_ratio':       round(total_spent / total_budget * 100, 1) if total_budget > 0 else 0,
         },
         'platforms': [
             {
                 'platform': p['platform'],
                 'cnt':      int(p['cnt']),
-                'budget':   safe_float(p['budget']),
+                'budget':   0, # Chúng ta không tính budget lẻ cho platform ở đây để tránh phức tạp, table sẽ chỉ hiện spent
                 'spent':    safe_float(p['spent']),
             }
             for p in platforms
@@ -149,8 +178,9 @@ def reports_page():
 def reports_summary():
     from_date, to_date = _date_range_params()
     role    = session['role']
+    user_id = session.get('user_id')
     cust_id = session.get('customer_id')
-    data    = _get_summary(from_date, to_date, role, cust_id)
+    data    = _get_summary(from_date, to_date, role, user_id, cust_id)
     return jsonify({'success': True, 'from': from_date, 'to': to_date, **data})
 
 @reports_bp.route('/api/chart/spending-trend')
@@ -169,22 +199,47 @@ def chart_spending_trend():
     elif role == 'marketer': params.append(session.get('user_id'))
 
     sql = f"""
-        SELECT dr.date as report_date, SUM(dr.amount_spent) AS total_spent
-        FROM daily_spending dr
+        SELECT dr.report_date as report_date, SUM(dr.daily_spent) AS total_spent
+        FROM daily_reports dr
         JOIN campaigns c ON dr.campaign_id = c.id
         {join_marketer}
-        WHERE dr.date >= %s AND dr.date <= %s
+        WHERE dr.report_date >= %s AND dr.report_date <= %s
           AND c.is_deleted = 0
           {where_extra}
           {where_marketer}
-        GROUP BY dr.date
-        ORDER BY dr.date ASC
+        GROUP BY dr.report_date
+        ORDER BY dr.report_date ASC
     """
     rows = DBModel.fetch_all(sql, tuple(params))
     
     labels = [r['report_date'].strftime('%d/%m') if hasattr(r['report_date'], 'strftime') else str(r['report_date']) for r in rows]
     data   = [float(r['total_spent'] or 0) for r in rows]
     return jsonify({'success': True, 'labels': labels, 'data': data})
+
+
+@reports_bp.route('/api/agency/profit-report')
+@require_role_api(['admin'])
+def agency_profit_report():
+    """
+    SQL Tối ưu: Lấy báo cáo doanh thu & lợi nhuận ròng theo tháng.
+    Doanh thu = Tổng chi tiêu của khách * 10% (phí dịch vụ).
+    Lợi nhuận = Doanh thu - (Chi phí vận hành giả định 2%).
+    """
+    sql = """
+        SELECT 
+            DATE_FORMAT(dr.report_date, '%Y-%m') as month,
+            SUM(dr.daily_spent) as total_client_spend,
+            SUM(dr.daily_spent * 0.1) as agency_revenue, -- 10% Service Fee
+            SUM(dr.daily_spent * 0.08) as net_profit     -- Trừ 2% vận hành -> còn 8% thực thu
+        FROM daily_reports dr
+        JOIN campaigns c ON dr.campaign_id = c.id
+        WHERE dr.report_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+          AND c.is_deleted = 0
+        GROUP BY month
+        ORDER BY month DESC
+    """
+    data = DBModel.fetch_all(sql)
+    return jsonify({'success': True, 'data': data})
 
 
 # ─────────────────────────────────────────────────────────────────────────────

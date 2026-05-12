@@ -5,11 +5,6 @@
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <style>
-    .glass-card {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
     
     .browser-mockup {
         border: 8px solid #1e293b;
@@ -67,14 +62,14 @@
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
                     </span>
-                    Nền tảng SaaS Quản lý Ads số 1
+                    HTDADS Agency - Đối tác Digital Marketing Tin cậy
                 </div>
                 <h1 class="text-5xl lg:text-7xl font-black text-slate-900 leading-[1.1] tracking-tight">
-                    Tối ưu hiệu suất <br>
-                    <span class="gradient-text">Quảng cáo Đa kênh</span>
+                    Nâng tầm thương hiệu <br>
+                    <span class="gradient-text">Vươn tầm Quốc tế</span>
                 </h1>
                 <p class="text-lg text-slate-600 leading-relaxed max-w-xl">
-                    Hệ thống quản lý chiến dịch tập trung, cảnh báo ngân sách tự động và báo cáo real-time giúp doanh nghiệp kiểm soát 100% chi phí marketing.
+                    Chúng tôi không chỉ cung cấp phần mềm, chúng tôi cung cấp giải pháp tăng trưởng toàn diện. HTDADS giúp doanh nghiệp tối ưu hóa chi phí quảng cáo và đột phá doanh thu bền vững.
                 </p>
                 <div class="flex flex-wrap gap-4">
                     <a href="{{ url_for('public.login_page') }}" class="px-8 py-4 bg-brandblue text-white rounded-2xl font-bold hover:bg-blue-900 transition-all shadow-xl shadow-blue-200 flex items-center gap-2">
@@ -161,7 +156,55 @@
     </div>
 </section>
 
-<!-- ═══ 3. AD PREVIEW SECTION ═════════════════════════════════ -->
+<!-- ═══ 3. ABOUT US SECTION ════════════════════════════════════ -->
+<section id="about" class="py-32 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <div class="space-y-8">
+                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-widest">
+                    Về HTDADS Agency
+                </div>
+                <h2 class="text-4xl lg:text-5xl font-black text-slate-900 leading-tight">
+                    Hơn 10 năm kinh nghiệm <br>
+                    <span class="text-brandblue">trong ngành Marketing</span>
+                </h2>
+                <div class="space-y-6 text-lg text-slate-600 leading-relaxed">
+                    <p>
+                        HTDADS Agency khởi đầu từ một nhóm chuyên gia Digital Marketing với khát vọng tối ưu hóa quy trình quảng cáo cho doanh nghiệp Việt. Sau hơn một thập kỷ, chúng tôi tự hào đã đồng hành cùng hàng trăm doanh nghiệp, từ startup đến tập đoàn lớn.
+                    </p>
+                    <p>
+                        Sứ mệnh của chúng tôi là đem công nghệ vào quản lý, giúp mọi quyết định marketing đều dựa trên dữ liệu thực tế và mang lại hiệu quả chuyển đổi cao nhất.
+                    </p>
+                </div>
+                <div class="grid grid-cols-2 gap-8 pt-4">
+                    <div class="space-y-2">
+                        <p class="text-3xl font-black text-brandred">2015</p>
+                        <p class="text-sm font-bold text-slate-400 uppercase">Năm thành lập</p>
+                    </div>
+                    <div class="space-y-2">
+                        <p class="text-3xl font-black text-brandred">50+</p>
+                        <p class="text-sm font-bold text-slate-400 uppercase">Chuyên gia</p>
+                    </div>
+                </div>
+            </div>
+            <div class="relative">
+                <div class="aspect-square rounded-[3rem] overflow-hidden shadow-2xl">
+                    <img src="https://images.unsplash.com/photo-1522071823991-b515d777bbbd?w=800&q=80" alt="Team HTDADS" class="w-full h-full object-cover">
+                </div>
+                <!-- Floating Card -->
+                <div class="absolute -bottom-10 -left-10 glass-card p-8 rounded-[2rem] shadow-2xl space-y-4 max-w-xs">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-brandblue"><i data-lucide="award" class="w-6 h-6"></i></div>
+                        <p class="font-bold text-slate-800">Top Agency 2024</p>
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed">Được bình chọn là đơn vị cung cấp giải pháp MarTech xuất sắc nhất năm.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ 4. AD PREVIEW SECTION ═════════════════════════════════ -->
 <section class="py-32 bg-slate-50 overflow-hidden">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">

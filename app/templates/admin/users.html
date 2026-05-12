@@ -1,77 +1,128 @@
 {% extends "layouts/admin_base.html" %}
 
-{% block title %}Quản lý Người dùng - ADS Manager{% endblock %}
-{% block page_title %}Quản lý Người dùng{% endblock %}
-{% block page_subtitle %}Quản trị viên, Nhân viên và Tài khoản khách hàng liên kết.{% endblock %}
+{% block title %}Quản lý Nhân viên - ADS Manager{% endblock %}
+{% block page_title %}Quản lý Nhân viên & Tài khoản{% endblock %}
+{% block page_subtitle %}Quản trị viên, Marketer và Tài khoản khách hàng liên kết.{% endblock %}
 
 {% block content %}
 <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3"></div>
 
-<!-- TOOLBAR -->
-<div class="mb-6 flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-    <div class="relative w-80">
-        <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
-        <input type="text" id="user-search" placeholder="Tìm tên đăng nhập..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary transition-all">
+<!-- KPI SUMMARY -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5">
+        <div class="bg-indigo-50 w-14 h-14 rounded-2xl flex items-center justify-center text-indigo-600">
+            <i data-lucide="shield-check" class="w-7 h-7"></i>
+        </div>
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Tổng nhân sự</p>
+            <h3 class="text-2xl font-black text-slate-900" id="stat-staff">0</h3>
+        </div>
     </div>
-    <button onclick="openAddUserModal()" class="bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-indigo-700 transition-all flex items-center gap-2">
-        <i data-lucide="user-plus" class="w-4 h-4"></i> Thêm người dùng
+    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5">
+        <div class="bg-emerald-50 w-14 h-14 rounded-2xl flex items-center justify-center text-emerald-600">
+            <i data-lucide="users" class="w-7 h-7"></i>
+        </div>
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Khách hàng</p>
+            <h3 class="text-2xl font-black text-slate-900" id="stat-clients">0</h3>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5">
+        <div class="bg-amber-50 w-14 h-14 rounded-2xl flex items-center justify-center text-amber-600">
+            <i data-lucide="user-minus" class="w-7 h-7"></i>
+        </div>
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Đã khóa</p>
+            <h3 class="text-2xl font-black text-slate-900" id="stat-locked">0</h3>
+        </div>
+    </div>
+</div>
+
+<!-- TAB SYSTEM -->
+<div class="flex gap-2 mb-8 bg-slate-100 p-1.5 rounded-2xl w-fit">
+    <button onclick="switchUserTab('staff')" id="tab-staff" class="px-6 py-2.5 rounded-xl text-sm font-black transition-all bg-white text-indigo-600 shadow-sm flex items-center gap-2">
+        <i data-lucide="shield-check" class="w-4 h-4"></i>
+        Nhân viên hệ thống
+    </button>
+    <button onclick="switchUserTab('clients')" id="tab-clients" class="px-6 py-2.5 rounded-xl text-sm font-black transition-all text-slate-500 hover:text-slate-700 flex items-center gap-2">
+        <i data-lucide="user-circle" class="w-4 h-4"></i>
+        Tài khoản khách
+    </button>
+</div>
+
+<!-- TOOLBAR -->
+<div class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+    <div class="relative w-full sm:w-80">
+        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+        <input type="text" id="user-search" onkeyup="filterUsers()" placeholder="Tìm tên đăng nhập..." class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 transition-all">
+    </div>
+    <button onclick="openAddUserModal()" class="w-full sm:w-auto bg-indigo-600 text-white px-8 py-3 rounded-xl font-black text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+        <i data-lucide="user-plus" class="w-4 h-4"></i> Thêm thành viên
     </button>
 </div>
 
 <!-- TABLE -->
-<div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+<div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden mb-20">
     <div class="overflow-x-auto">
         <table class="w-full text-left">
             <thead>
                 <tr class="bg-slate-50/50">
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">ID</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Người dùng</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Vai trò</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Ngày tạo</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Trạng thái</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Khách hàng liên kết</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Thao tác</th>
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Thành viên</th>
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Vai trò</th>
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Trạng thái</th>
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Liên kết</th>
+                    <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Hành động</th>
                 </tr>
             </thead>
             <tbody id="user-list" class="divide-y divide-slate-50">
-                <!-- Data loaded via JS -->
+                <tr><td colspan="5" class="px-8 py-20 text-center text-slate-300 italic">Đang tải dữ liệu...</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- MODAL: ADD USER -->
-<div id="modal-user" class="hidden fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-slate-900/60 p-4">
-    <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl p-8">
-        <h3 id="modal-title" class="text-xl font-black text-slate-900 mb-6">Thêm người dùng mới</h3>
-        <form id="form-user" onsubmit="event.preventDefault(); submitUser();" class="space-y-4">
+<!-- MODAL -->
+<div id="modal-user" class="hidden fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-slate-900/40 p-4">
+    <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div class="p-8 border-b border-slate-50 flex justify-between items-center">
+            <h3 id="modal-title" class="text-xl font-black text-slate-900">Thêm người dùng</h3>
+            <button onclick="closeModal()" class="p-2 hover:bg-slate-50 rounded-full transition-colors"><i data-lucide="x" class="w-5 h-5 text-slate-400"></i></button>
+        </div>
+        
+        <form id="form-user" onsubmit="event.preventDefault(); submitUser();" class="p-8 space-y-5">
             <input type="hidden" id="user-id">
-            <div>
-                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Tên đăng nhập</label>
-                <input type="text" id="username" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-primary focus:bg-white outline-none text-sm font-bold">
+            
+            <div class="space-y-2">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Tên đăng nhập</label>
+                <input type="text" id="username" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none text-sm font-bold transition-all">
             </div>
-            <div id="password-group">
-                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Mật khẩu</label>
-                <input type="password" id="password" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-primary focus:bg-white outline-none text-sm font-bold">
-                <p id="password-hint" class="text-[10px] text-slate-400 mt-1 hidden italic">* Để trống nếu không muốn đổi mật khẩu</p>
+            
+            <div id="password-group" class="space-y-2">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Mật khẩu</label>
+                <input type="password" id="password" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none text-sm font-bold transition-all">
+                <p id="password-hint" class="text-[10px] text-slate-400 mt-1 hidden italic">Để trống nếu không muốn đổi mật khẩu</p>
             </div>
-            <div>
-                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Vai trò</label>
-                <select id="role" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-primary focus:bg-white outline-none text-sm font-bold">
+            
+            <div class="space-y-2">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Vai trò hệ thống</label>
+                <select id="role" onchange="toggleCustomerSelect()" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none text-sm font-bold transition-all">
                     <option value="marketer">Nhân viên (Marketer)</option>
                     <option value="admin">Quản trị viên (Admin)</option>
                     <option value="client">Khách hàng (Client)</option>
                 </select>
             </div>
-            <div id="customer-select-group">
-                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Khách hàng liên kết (Dành cho Client)</label>
-                <select id="customer_id" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-primary focus:bg-white outline-none text-sm font-bold">
+            
+            <div id="customer-select-group" class="space-y-2 hidden">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Gán cho khách hàng</label>
+                <select id="customer_id" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none text-sm font-bold transition-all">
                     <option value="">-- Không liên kết --</option>
                 </select>
             </div>
-            <div class="flex gap-3 pt-4">
-                <button type="button" onclick="closeModal()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Hủy</button>
-                <button type="submit" id="btn-submit" class="flex-1 py-3 bg-primary text-white rounded-xl font-bold">Lưu lại</button>
+            
+            <div class="flex gap-4 pt-4">
+                <button type="submit" id="btn-submit" class="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all">
+                    Lưu thay đổi
+                </button>
             </div>
         </form>
     </div>
@@ -82,67 +133,103 @@
 {% block scripts %}
 <script>
     let allUsers = [];
+    let currentTab = 'staff';
 
     document.addEventListener('DOMContentLoaded', () => {
         loadUsers();
         loadCustomers();
-        lucide.createIcons();
     });
+
+    function switchUserTab(tab) {
+        currentTab = tab;
+        // Cập nhật giao diện tab
+        const staffBtn = document.getElementById('tab-staff');
+        const clientsBtn = document.getElementById('tab-clients');
+        
+        if (tab === 'staff') {
+            staffBtn.className = "px-6 py-2.5 rounded-xl text-sm font-black transition-all bg-white text-indigo-600 shadow-sm flex items-center gap-2";
+            clientsBtn.className = "px-6 py-2.5 rounded-xl text-sm font-black transition-all text-slate-500 hover:text-slate-700 flex items-center gap-2";
+        } else {
+            clientsBtn.className = "px-6 py-2.5 rounded-xl text-sm font-black transition-all bg-white text-indigo-600 shadow-sm flex items-center gap-2";
+            staffBtn.className = "px-6 py-2.5 rounded-xl text-sm font-black transition-all text-slate-500 hover:text-slate-700 flex items-center gap-2";
+        }
+        
+        filterUsers();
+        lucide.createIcons();
+    }
 
     async function loadCustomers() {
         try {
-            const res = await fetch("/admin/api/customers");
+            const res = await fetch("/admin/api/customers/list");
             const data = await res.json();
             const select = document.getElementById('customer_id');
-            data.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.name;
-                select.appendChild(opt);
-            });
-        } catch (e) { console.error("Lỗi tải danh sách khách hàng", e); }
+            select.innerHTML = '<option value="">-- Không liên kết --</option>' + 
+                data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        } catch (e) { console.error(e); }
     }
 
     async function loadUsers() {
         try {
             const res = await fetch("{{ url_for('admin.get_users') }}");
             allUsers = await res.json();
-            renderUsers(allUsers);
-        } catch (e) { showToast("Lỗi tải danh sách user", "error"); }
+            filterUsers();
+            updateStats(allUsers);
+        } catch (e) { showToast("Lỗi tải danh sách người dùng", "error"); }
+    }
+
+    function updateStats(users) {
+        document.getElementById('stat-staff').textContent = users.filter(u => u.role !== 'client').length;
+        document.getElementById('stat-clients').textContent = users.filter(u => u.role === 'client').length;
+        document.getElementById('stat-locked').textContent = users.filter(u => !u.is_active).length;
     }
 
     function renderUsers(users) {
         const tbody = document.getElementById('user-list');
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-8 py-20 text-center text-slate-400">Không tìm thấy người dùng nào.</td></tr>';
+            return;
+        }
+
         tbody.innerHTML = users.map(u => {
-            const roleColors = {
-                admin: 'bg-red-50 text-red-600',
-                marketer: 'bg-indigo-50 text-indigo-600',
-                client: 'bg-emerald-50 text-emerald-600'
+            const roleLabels = {
+                admin: { text: 'Admin', class: 'bg-rose-50 text-rose-600' },
+                marketer: { text: 'Marketer', class: 'bg-indigo-50 text-indigo-600' },
+                client: { text: 'Client', class: 'bg-emerald-50 text-emerald-600' }
             };
+            const role = roleLabels[u.role] || { text: u.role, class: 'bg-slate-50 text-slate-600' };
+            
             return `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-6 py-4 text-xs font-bold text-slate-400">#${u.id}</td>
-                    <td class="px-6 py-4 font-bold text-slate-900">${u.username}</td>
-                    <td class="px-6 py-4">
-                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${roleColors[u.role] || ''}">
-                            ${u.role}
+                <tr class="hover:bg-slate-50 transition-colors group">
+                    <td class="px-8 py-5">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-black text-xs uppercase">
+                                ${u.username.substring(0, 2)}
+                            </div>
+                            <div>
+                                <p class="font-black text-slate-900">${u.username}</p>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Tham gia: ${u.created_at}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-8 py-5">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${role.class}">
+                            ${role.text}
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-xs text-slate-500 font-medium">${u.created_at || 'N/A'}</td>
-                    <td class="px-6 py-4">
+                    <td class="px-8 py-5">
                         <button onclick="toggleStatus(${u.id})" class="flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${u.is_active ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-400'}">
                             <div class="w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}"></div>
-                            <span class="text-[10px] font-black uppercase tracking-widest">${u.is_active ? 'Đang hoạt động' : 'Đã khóa'}</span>
+                            <span class="text-[10px] font-black uppercase tracking-widest">${u.is_active ? 'Hoạt động' : 'Đã khóa'}</span>
                         </button>
                     </td>
-                    <td class="px-6 py-4">
-                        <span class="text-xs font-bold ${u.customer_name ? 'text-indigo-600' : 'text-slate-400'}">
-                            ${u.customer_name || '—'}
+                    <td class="px-8 py-5">
+                        <span class="text-xs font-bold ${u.linked_customer_name || u.managed_customers_count > 0 ? 'text-indigo-600' : 'text-slate-400'}">
+                            ${u.role === 'client' ? (u.linked_customer_name || '—') : (u.managed_customers_count > 0 ? `${u.managed_customers_count} khách hàng` : '0 khách hàng')}
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-right">
-                        <button onclick="openEditModal(${u.id})" class="p-2 bg-slate-50 text-slate-400 hover:bg-primary hover:text-white rounded-lg transition-all">
-                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                    <td class="px-8 py-5 text-right">
+                        <button onclick="openEditModal(${u.id})" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
+                            <i data-lucide="edit-3" class="w-5 h-5"></i>
                         </button>
                     </td>
                 </tr>
@@ -151,14 +238,38 @@
         lucide.createIcons();
     }
 
+    function filterUsers() {
+        const q = document.getElementById('user-search').value.toLowerCase();
+        let filtered = allUsers;
+        
+        if (currentTab === 'staff') {
+            filtered = filtered.filter(u => u.role !== 'client');
+        } else {
+            filtered = filtered.filter(u => u.role === 'client');
+        }
+        
+        if (q) {
+            filtered = filtered.filter(u => u.username.toLowerCase().includes(q));
+        }
+        
+        renderUsers(filtered);
+    }
+
+    function toggleCustomerSelect() {
+        const role = document.getElementById('role').value;
+        const group = document.getElementById('customer-select-group');
+        if (role === 'client') group.classList.remove('hidden');
+        else group.classList.add('hidden');
+    }
+
     function openAddUserModal() {
         document.getElementById('form-user').reset();
         document.getElementById('user-id').value = '';
-        document.getElementById('modal-title').textContent = "Thêm người dùng mới";
+        document.getElementById('modal-title').textContent = "Thêm thành viên mới";
         document.getElementById('username').disabled = false;
         document.getElementById('password').required = true;
         document.getElementById('password-hint').classList.add('hidden');
-        document.getElementById('customer_id').value = '';
+        toggleCustomerSelect();
         document.getElementById('modal-user').classList.remove('hidden');
     }
 
@@ -173,7 +284,8 @@
         document.getElementById('password').required = false;
         document.getElementById('password-hint').classList.remove('hidden');
         document.getElementById('customer_id').value = u.customer_id || '';
-        document.getElementById('modal-title').textContent = "Cập nhật người dùng";
+        document.getElementById('modal-title').textContent = "Cập nhật thành viên";
+        toggleCustomerSelect();
         document.getElementById('modal-user').classList.remove('hidden');
     }
 
@@ -196,7 +308,10 @@
         try {
             const res = await fetch(url, {
                 method: method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
@@ -204,15 +319,16 @@
                 showToast(data.message);
                 closeModal();
                 loadUsers();
-            } else {
-                showToast(data.message, "error");
-            }
+            } else showToast(data.message, "error");
         } catch (e) { showToast("Lỗi xử lý!", "error"); }
     }
 
     async function toggleStatus(id) {
         try {
-            const res = await fetch(`/admin/api/users/${id}/toggle-status`, { method: 'PUT' });
+            const res = await fetch(`/admin/api/users/${id}/toggle-status`, { 
+                method: 'PUT',
+                headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+            });
             const data = await res.json();
             if (data.success) {
                 showToast(data.message);
@@ -224,11 +340,16 @@
     function showToast(msg, type = 'success') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
-        const colors = { success: 'bg-emerald-500', error: 'bg-red-500' };
-        toast.className = `px-6 py-3 rounded-xl text-white font-medium shadow-xl transition-all animate-bounce ${colors[type]}`;
-        toast.textContent = msg;
+        const colors = { success: 'bg-indigo-600', error: 'bg-rose-600' };
+        toast.className = `px-6 py-4 rounded-2xl text-white text-sm font-black shadow-2xl transition-all animate-bounce flex items-center gap-3 ${colors[type]}`;
+        toast.innerHTML = `<i data-lucide="${type==='success'?'check-circle':'alert-circle'}" class="w-5 h-5"></i> ${msg}`;
         container.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        lucide.createIcons();
+        setTimeout(() => {
+            toast.classList.remove('animate-bounce');
+            toast.classList.add('opacity-0', 'translate-x-10');
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
     }
 </script>
 {% endblock %}

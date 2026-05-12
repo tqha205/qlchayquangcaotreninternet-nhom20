@@ -1,0 +1,86 @@
+{% extends "layouts/admin_base.html" %}
+
+{% block title %}Nhật ký hệ thống - ADS Manager{% endblock %}
+{% block page_title %}Nhật ký hệ thống{% endblock %}
+{% block page_subtitle %}Theo dõi các hoạt động quan trọng của người dùng và hệ thống.{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+    <div class="px-8 py-6 border-b border-slate-50 flex justify-between items-center">
+        <h3 class="font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-5 h-5 text-primary"></i>
+            Hoạt động gần đây
+        </h3>
+        <button onclick="loadLogs()" class="p-2 text-slate-400 hover:text-primary transition-colors">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        </button>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-slate-50 text-xs font-black uppercase tracking-widest text-slate-400">
+                    <th class="px-6 py-4 text-left">Thời gian</th>
+                    <th class="px-6 py-4 text-left">Người dùng</th>
+                    <th class="px-6 py-4 text-left">Hành động</th>
+                    <th class="px-6 py-4 text-left">Đối tượng</th>
+                    <th class="px-6 py-4 text-left">Chi tiết</th>
+                </tr>
+            </thead>
+            <tbody id="logs-body" class="divide-y divide-slate-50">
+                <tr><td colspan="5" class="text-center py-20 text-slate-400 italic">Đang tải nhật ký...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadLogs() {
+    const tbody = document.getElementById('logs-body');
+    try {
+        const res = await fetch('/admin/api/admin/audit-logs');
+        const data = await res.json();
+        
+        if (!data.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-slate-400">Chưa có hoạt động nào được ghi nhận.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(log => {
+            let details = '—';
+            try {
+                if (log.details) {
+                    const d = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+                    details = `<pre class="text-[10px] bg-slate-50 p-2 rounded-lg max-w-xs truncate hover:whitespace-pre-wrap transition-all cursor-help">${JSON.stringify(d, null, 2)}</pre>`;
+                }
+            } catch(e) {}
+
+            return `
+            <tr class="hover:bg-slate-50/50 transition-colors">
+                <td class="px-6 py-4 text-slate-500 font-medium whitespace-nowrap">${log.created_at}</td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-[10px] uppercase">${log.username ? log.username[0] : '?'}</span>
+                        <div>
+                            <p class="font-bold text-slate-800">${log.username || 'System'}</p>
+                            <p class="text-[10px] text-slate-400 uppercase font-black tracking-tighter">${log.role || '—'}</p>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-indigo-100">${log.action}</span>
+                </td>
+                <td class="px-6 py-4 text-slate-600 font-semibold">${log.target_table} <span class="text-slate-300">#${log.target_id || ''}</span></td>
+                <td class="px-6 py-4">${details}</td>
+            </tr>`;
+        }).join('');
+    } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-rose-500 font-bold">Lỗi tải nhật ký: ${e.message}</td></tr>`;
+    }
+}
+
+loadLogs();
+</script>
+{% endblock %}

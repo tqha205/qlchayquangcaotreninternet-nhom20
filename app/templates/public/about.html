@@ -1,0 +1,156 @@
+{% extends "layouts/public_base.html" %}
+
+{% block title %}Giới thiệu - HTDADS Agency{% endblock %}
+
+{% block head %}
+<style>
+    .value-card {
+        transition: all 0.3s ease;
+        border: 1px solid rgba(0, 51, 153, 0.05);
+    }
+    .value-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 20px 40px rgba(0, 51, 153, 0.1);
+        border-color: rgba(0, 51, 153, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ═══ HEADER ════════════════════════════════════════ -->
+<section class="relative py-24 bg-brandblue overflow-hidden text-white">
+    <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl -mr-48 -mt-48"></div>
+        <div class="absolute bottom-0 left-0 w-96 h-96 bg-brandred rounded-full blur-3xl -ml-48 -mb-48"></div>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+        <h1 class="text-5xl lg:text-7xl font-black mb-6">Câu chuyện của HTDADS</h1>
+        <p class="text-xl text-blue-100 max-w-2xl mx-auto leading-relaxed">
+            Hơn một thập kỷ kiến tạo giá trị và đồng hành cùng sự phát triển của hàng trăm doanh nghiệp Việt trong kỷ nguyên số.
+        </p>
+    </div>
+</section>
+
+<!-- ═══ MISSION & VISION ════════════════════════════════ -->
+<section class="py-32 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+            <div class="order-2 lg:order-1">
+                <div class="aspect-[4/3] rounded-[3rem] overflow-hidden shadow-2xl relative">
+                    <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80" alt="Office" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <div class="absolute bottom-10 left-10 text-white">
+                        <p class="text-3xl font-black">HTDADS Headquarter</p>
+                        <p class="text-blue-200">Ho Chi Minh City, Vietnam</p>
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-12 order-1 lg:order-2">
+                <div class="space-y-4">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-brandblue text-xs font-bold uppercase tracking-widest">
+                        Tầm nhìn & Sứ mệnh
+                    </div>
+                    <h2 class="text-4xl font-black text-slate-900 leading-tight">Trở thành đơn vị <span class="text-brandred">MarTech hàng đầu</span> Đông Nam Á</h2>
+                </div>
+                
+                <div class="space-y-8">
+                    <div class="flex gap-6">
+                        <div class="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0 text-brandred">
+                            <i data-lucide="target" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-slate-900 mb-2">Sứ mệnh</h3>
+                            <p class="text-slate-600 leading-relaxed">Tối ưu hóa hiệu quả kinh doanh thông qua các giải pháp công nghệ quảng cáo thông minh, minh bạch và hiệu quả cao.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-6">
+                        <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center flex-shrink-0 text-brandblue">
+                            <i data-lucide="eye" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-slate-900 mb-2">Tầm nhìn</h3>
+                            <p class="text-slate-600 leading-relaxed">Xây dựng hệ sinh thái marketing toàn diện, nơi mọi doanh nghiệp đều có thể tiếp cận với những công nghệ quảng cáo tiên tiến nhất thế giới.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ CORE VALUES ════════════════════════════════ -->
+<section class="py-32 bg-slate-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-20">
+        <h2 class="text-4xl font-black text-slate-900 mb-6">Giá trị cốt lõi</h2>
+        <p class="text-slate-600 max-w-xl mx-auto">Kim chỉ nam cho mọi hoạt động và quyết định tại HTDADS Agency.</p>
+    </div>
+    
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Value 1 -->
+            <div class="value-card bg-white p-10 rounded-[2.5rem] text-center">
+                <div class="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-8 text-brandblue">
+                    <i data-lucide="shield-check" class="w-10 h-10"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900 mb-4">Minh bạch</h3>
+                <p class="text-slate-500 leading-relaxed">Mọi báo cáo, ngân sách và hiệu quả chiến dịch đều được cập nhật real-time và chính xác tuyệt đối.</p>
+            </div>
+            
+            <!-- Value 2 -->
+            <div class="value-card bg-white p-10 rounded-[2.5rem] text-center">
+                <div class="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-8 text-brandred">
+                    <i data-lucide="zap" class="w-10 h-10"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900 mb-4">Sáng tạo</h3>
+                <p class="text-slate-500 leading-relaxed">Không ngừng đổi mới và áp dụng những công nghệ, thuật toán mới nhất để tối ưu hóa kết quả.</p>
+            </div>
+            
+            <!-- Value 3 -->
+            <div class="value-card bg-white p-10 rounded-[2.5rem] text-center">
+                <div class="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center mx-auto mb-8 text-emerald-600">
+                    <i data-lucide="users" class="w-10 h-10"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900 mb-4">Tận tâm</h3>
+                <p class="text-slate-500 leading-relaxed">Coi sự thành công của khách hàng chính là thước đo cho sự thành công của chúng tôi.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ STATS ════════════════════════════════ -->
+<section class="py-32 bg-brandred text-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
+            <div class="space-y-4">
+                <p class="text-5xl lg:text-7xl font-black">10+</p>
+                <p class="text-sm font-bold uppercase tracking-widest text-red-200">Năm kinh nghiệm</p>
+            </div>
+            <div class="space-y-4">
+                <p class="text-5xl lg:text-7xl font-black">300+</p>
+                <p class="text-sm font-bold uppercase tracking-widest text-red-200">Đối tác tin dùng</p>
+            </div>
+            <div class="space-y-4">
+                <p class="text-5xl lg:text-7xl font-black">1.5K+</p>
+                <p class="text-sm font-bold uppercase tracking-widest text-red-200">Chiến dịch hoàn tất</p>
+            </div>
+            <div class="space-y-4">
+                <p class="text-5xl lg:text-7xl font-black">50+</p>
+                <p class="text-sm font-bold uppercase tracking-widest text-red-200">Giải thưởng uy tín</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ CTA ════════════════════════════════ -->
+<section class="py-32 bg-white">
+    <div class="max-w-4xl mx-auto px-4 text-center space-y-10">
+        <h2 class="text-4xl font-black text-slate-900 leading-tight">Bạn đã sẵn sàng để đồng hành cùng chúng tôi?</h2>
+        <p class="text-lg text-slate-600">Hãy để HTDADS giúp bạn đột phá doanh số ngay hôm nay.</p>
+        <div class="flex flex-wrap justify-center gap-6">
+            <a href="{{ url_for('public.contact') }}" class="px-10 py-5 bg-brandblue text-white rounded-2xl font-bold shadow-xl shadow-blue-200 hover:bg-blue-900 transition-all">Liên hệ ngay</a>
+            <a href="{{ url_for('public.login_page') }}" class="px-10 py-5 bg-white text-slate-900 border border-slate-200 rounded-2xl font-bold hover:bg-slate-50 transition-all">Dùng thử phần mềm</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

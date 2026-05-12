@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập - ADS Manager</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -52,7 +53,10 @@
                     <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
                         <i data-lucide="lock" class="w-5 h-5"></i>
                     </span>
-                    <input type="password" id="password" required class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400" placeholder="••••••••">
+                    <input type="password" id="password" required class="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400" placeholder="••••••••">
+                    <button type="button" onclick="togglePassword('password', this)" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-primary transition-colors">
+                        <i data-lucide="eye" class="w-5 h-5" id="password-eye"></i>
+                    </button>
                 </div>
             </div>
 
@@ -79,6 +83,20 @@
 
     <script>
         lucide.createIcons();
+
+        function togglePassword(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                input.type = 'password';
+                icon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
+
         async function doLogin() {
             const btn = document.getElementById('login-btn');
             const originalContent = btn.innerHTML;
@@ -88,7 +106,10 @@
             try {
                 const res = await fetch("{{ url_for('auth.login') }}", {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
                     body: JSON.stringify({
                         username: document.getElementById('username').value,
                         password: document.getElementById('password').value

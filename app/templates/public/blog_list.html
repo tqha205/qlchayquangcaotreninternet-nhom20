@@ -1,0 +1,123 @@
+{% extends "layouts/public_base.html" %}
+
+{% block title %}Blog Kiến thức Marketing - HTDADS{% endblock %}
+
+{% block head %}
+<style>
+    .blog-card {
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid #F1F5F9;
+    }
+    
+    .blog-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.1);
+        border-color: #E2E8F0;
+    }
+    
+    .blog-card-image {
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .blog-card-image img {
+        transition: transform 0.8s ease;
+    }
+    
+    .blog-card:hover .blog-card-image img {
+        transform: scale(1.1);
+    }
+
+    .category-badge {
+        position: absolute;
+        top: 1.5rem;
+        left: 1.5rem;
+        z-index: 10;
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.9);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ═══ HEADER ══════════════════════════════════════════════════ -->
+<section class="relative pt-24 pb-20 overflow-hidden bg-slate-900">
+    <div class="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-brandred/10 to-transparent"></div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="max-w-3xl">
+            <h1 class="text-4xl md:text-6xl font-black text-white mb-6 leading-tight">
+                Kiến thức <span class="text-brandred">Digital Marketing</span> mới nhất
+            </h1>
+            <p class="text-slate-400 text-lg md:text-xl leading-relaxed">
+                Tổng hợp những xu hướng, bí quyết và chiến lược quảng cáo đa nền tảng giúp doanh nghiệp bạn bứt phá trong kỷ nguyên số.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ BLOG GRID ═══════════════════════════════════════════════ -->
+<section class="py-32 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Filter Tabs (Visual only) -->
+        <div class="flex flex-wrap gap-4 mb-16">
+            <button class="px-6 py-2.5 bg-brandblue text-white rounded-full text-sm font-bold shadow-lg shadow-blue-500/20">Tất cả</button>
+            <button class="px-6 py-2.5 bg-slate-50 text-slate-600 rounded-full text-sm font-bold hover:bg-slate-100 transition-colors">Tin tức</button>
+            <button class="px-6 py-2.5 bg-slate-50 text-slate-600 rounded-full text-sm font-bold hover:bg-slate-100 transition-colors">Facebook Ads</button>
+            <button class="px-6 py-2.5 bg-slate-50 text-slate-600 rounded-full text-sm font-bold hover:bg-slate-100 transition-colors">Google Ads</button>
+            <button class="px-6 py-2.5 bg-slate-50 text-slate-600 rounded-full text-sm font-bold hover:bg-slate-100 transition-colors">Zalo Ads</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            {% for slug, post in blogs.items() %}
+            <article class="blog-card flex flex-col bg-white rounded-[2.5rem] overflow-hidden">
+                <div class="blog-card-image aspect-[16/10]">
+                    <span class="category-badge px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-900">
+                        {{ post.category }}
+                    </span>
+                    <img src="{{ post.image }}" alt="{{ post.title }}" class="w-full h-full object-cover">
+                </div>
+                <div class="p-8 flex-1 flex flex-col">
+                    <h3 class="text-xl font-black text-slate-900 mb-4 line-clamp-2 hover:text-brandblue transition-colors">
+                        <a href="{{ url_for('public.blog_post', slug=slug) }}">
+                            {{ post.title }}
+                        </a>
+                    </h3>
+                    <p class="text-slate-500 text-sm leading-relaxed mb-8 flex-1 line-clamp-3">
+                        {{ post.content }}
+                    </p>
+                    <div class="flex items-center justify-between pt-6 border-t border-slate-50">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">5 phút đọc</span>
+                        <a href="{{ url_for('public.blog_post', slug=slug) }}" class="text-brandred font-bold text-sm flex items-center gap-1 group">
+                            Xem chi tiết <i data-lucide="arrow-right" class="w-4 h-4 transition-transform group-hover:translate-x-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination (Visual only) -->
+        <div class="mt-24 flex justify-center gap-2">
+            <button class="w-12 h-12 rounded-xl bg-brandblue text-white flex items-center justify-center font-bold">1</button>
+            <button class="w-12 h-12 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center font-bold hover:bg-slate-100">2</button>
+            <button class="w-12 h-12 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center font-bold hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ CTA ═════════════════════════════════════════════════════ -->
+<section class="py-32 bg-slate-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="bg-gradient-to-br from-brandblue to-brandred p-12 lg:p-24 rounded-[3.5rem] text-center text-white relative overflow-hidden">
+            <div class="relative z-10 max-w-2xl mx-auto">
+                <h2 class="text-4xl md:text-5xl font-black mb-8">Bạn cần một chiến dịch bứt phá?</h2>
+                <p class="text-blue-100 text-lg mb-12">Đội ngũ chuyên gia của chúng tôi luôn sẵn sàng tư vấn và đồng hành cùng sự phát triển của bạn.</p>
+                <a href="{{ url_for('public.contact') }}" class="px-12 py-5 bg-white text-brandblue rounded-2xl font-bold hover:bg-slate-100 transition-all shadow-2xl">
+                    Nhận tư vấn ngay
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

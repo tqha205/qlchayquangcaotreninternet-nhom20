@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng ký - ADS Manager</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -89,8 +90,11 @@
                             <i data-lucide="lock" class="w-5 h-5"></i>
                         </span>
                         <input type="password" id="password" required minlength="6" oninput="checkStrength(this.value)"
-                            class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
+                            class="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
                             placeholder="••••••••  (≥6 ký tự)">
+                        <button type="button" onclick="togglePassword('password', this)" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-primary transition-colors">
+                            <i data-lucide="eye" class="w-5 h-5"></i>
+                        </button>
                     </div>
                     <!-- Strength Indicator -->
                     <div class="grid grid-cols-4 gap-1 mt-1.5 px-0.5">
@@ -110,8 +114,11 @@
                             <i data-lucide="shield-check" class="w-5 h-5"></i>
                         </span>
                         <input type="password" id="confirm_password" required
-                            class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
+                            class="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-400"
                             placeholder="Nhập lại mật khẩu">
+                        <button type="button" onclick="togglePassword('confirm_password', this)" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-primary transition-colors">
+                            <i data-lucide="eye" class="w-5 h-5"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -145,6 +152,19 @@
 
     <script>
         lucide.createIcons();
+        
+        function togglePassword(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                input.type = 'password';
+                icon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
 
         // ─── Toast Notification System ───────────────────────────────────────────
         function showToast(message, type = 'error') {
@@ -234,7 +254,10 @@
             try {
                 const res    = await fetch("{{ url_for('auth.register') }}", {
                     method:  'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
                     body:    JSON.stringify(data)
                 });
                 const result = await res.json();

@@ -10,3 +10,4 @@ from .creative import CreativeModel
 from .platform import PlatformModel
 from .spending import SpendingModel
 from .transaction import TransactionModel
+from .campaign_platform import CampaignPlatformModel

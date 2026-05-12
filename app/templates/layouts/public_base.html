@@ -39,6 +39,13 @@
         /* Mobile menu */
         #mobile-menu { display: none; }
         #mobile-menu.open { display: block; }
+        /* Glass card */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -80,7 +87,7 @@
                 <div class="hidden lg:flex items-center gap-1 font-semibold text-[14px] text-brandblue">
 
                     <a href="{{ url_for('public.index') }}" class="px-3 py-2 rounded-lg text-brandred font-bold">Trang chủ</a>
-                    <a href="#" class="px-3 py-2 rounded-lg hover:text-brandred hover:bg-red-50 transition-colors">Giới thiệu</a>
+                    <a href="{{ url_for('public.about') }}" class="px-3 py-2 rounded-lg hover:text-brandred hover:bg-red-50 transition-colors">Giới thiệu</a>
 
                     <!-- Mega Menu: Sản phẩm -->
                     <div class="nav-group relative py-6">
@@ -155,10 +162,13 @@
 
                     <!-- Dropdown: Blog -->
                     <div class="nav-group relative py-6">
-                        <button class="flex items-center gap-1 px-3 py-2 rounded-lg hover:text-brandred hover:bg-red-50 transition-colors cursor-pointer">
+                        <a href="{{ url_for('public.blog_list') }}" class="flex items-center gap-1 px-3 py-2 rounded-lg hover:text-brandred hover:bg-red-50 transition-colors cursor-pointer">
                             Blog <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400"></i>
-                        </button>
+                        </a>
                         <div class="simple-drop absolute top-full left-1/2 -translate-x-1/2 mt-0 w-64 bg-white border-t-2 border-brandblue shadow-xl rounded-b-xl z-50 py-2">
+                            <a href="{{ url_for('public.blog_list') }}" class="flex items-center gap-2 px-5 py-3 text-[14px] font-bold text-brandred border-b border-gray-50 bg-red-50/30">
+                                <i data-lucide="layout-grid" class="w-4 h-4"></i> Tất cả bài viết
+                            </a>
                             <a href="{{ url_for('public.blog_post', slug='tin-tuc-digital-marketing') }}" class="flex items-center gap-2 px-5 py-3 text-[14px] text-brandblue hover:bg-gray-50 hover:text-brandred transition-colors">
                                 <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i> Tin tức Digital Marketing
                             </a>
@@ -167,6 +177,12 @@
                             </a>
                             <a href="{{ url_for('public.blog_post', slug='kien-thuc-google-ads') }}" class="flex items-center gap-2 px-5 py-3 text-[14px] text-brandblue hover:bg-gray-50 hover:text-brandred transition-colors">
                                 <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i> Kiến thức Google Ads
+                            </a>
+                            <a href="{{ url_for('public.blog_post', slug='kien-thuc-zalo-ads') }}" class="flex items-center gap-2 px-5 py-3 text-[14px] text-brandblue hover:bg-gray-50 hover:text-brandred transition-colors">
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i> Kiến thức Zalo Ads
+                            </a>
+                            <a href="{{ url_for('public.blog_post', slug='kien-thuc-tiktok-ads') }}" class="flex items-center gap-2 px-5 py-3 text-[14px] text-brandblue hover:bg-gray-50 hover:text-brandred transition-colors border-t border-slate-50">
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i> Kiến thức TikTok Ads
                             </a>
                         </div>
                     </div>
@@ -213,7 +229,7 @@
         <div id="mobile-menu" class="lg:hidden bg-white border-t border-gray-100 shadow-xl">
             <div class="px-4 py-4 space-y-1 max-h-[80vh] overflow-y-auto">
                 <a href="{{ url_for('public.index') }}" class="block px-4 py-3 text-brandred font-bold rounded-xl bg-red-50">Trang chủ</a>
-                <a href="#" class="block px-4 py-3 text-brandblue font-semibold rounded-xl hover:bg-gray-50">Giới thiệu</a>
+                <a href="{{ url_for('public.about') }}" class="block px-4 py-3 text-brandblue font-semibold rounded-xl hover:bg-gray-50">Giới thiệu</a>
                 <p class="px-4 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2">Sản phẩm</p>
                 <a href="{{ url_for('public.service_detail', service_slug='facebook-ads') }}" class="block px-4 py-3 text-brandblue font-semibold rounded-xl hover:bg-gray-50 text-sm flex items-center gap-2">
                     <i data-lucide="layers" class="w-4 h-4 text-blue-500"></i> Quản lý Đa nền tảng
@@ -224,6 +240,12 @@
                 </a>
 
                 <a href="{{ url_for('public.contact') }}" class="block px-4 py-3 text-brandblue font-semibold rounded-xl hover:bg-gray-50">Liên hệ</a>
+                <p class="px-4 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2">Blog Kiến thức</p>
+                <a href="{{ url_for('public.blog_list') }}" class="block px-4 py-3 text-brandred font-bold rounded-xl hover:bg-gray-50 text-sm">Tất cả bài viết</a>
+                <a href="{{ url_for('public.blog_post', slug='kien-thuc-facebook-ads') }}" class="block px-4 py-3 text-brandblue font-semibold rounded-xl hover:bg-gray-50 text-sm">Kiến thức Facebook Ads</a>
+                <a href="{{ url_for('public.blog_post', slug='kien-thuc-google-ads') }}" class="block px-4 py-3 text-brandblue font-semibold rounded-xl hover:bg-gray-50 text-sm">Kiến thức Google Ads</a>
+                <a href="{{ url_for('public.blog_post', slug='kien-thuc-zalo-ads') }}" class="block px-4 py-3 text-brandblue font-semibold rounded-xl hover:bg-gray-50 text-sm">Kiến thức Zalo Ads</a>
+                <a href="{{ url_for('public.blog_post', slug='kien-thuc-tiktok-ads') }}" class="block px-4 py-3 text-brandblue font-semibold rounded-xl hover:bg-gray-50 text-sm">Kiến thức TikTok Ads</a>
                 <div class="pt-3 border-t border-gray-100 flex gap-2">
                     {% if session.user_id %}
                         <a href="{{ url_for('admin.dashboard') }}" class="flex-1 text-center bg-brandblue text-white px-4 py-3 rounded-xl font-bold text-sm">Tới Dashboard</a>

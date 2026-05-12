@@ -24,24 +24,53 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     {% block head %}{% endblock %}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
     <style>
+        :root { --primary: #4F46E5; }
+        .dark { background-color: #0f172a; color: #f1f5f9; }
+        .dark .bg-white { background-color: #1e293b; border-color: #334155; }
+        .dark .text-slate-900 { color: #f1f5f9; }
+        .dark .text-slate-600 { color: #94a3b8; }
+        .dark .bg-slate-50 { background-color: #0f172a; }
+        .dark .border-slate-100 { border-color: #334155; }
         .sidebar-active {
             background: rgba(255, 255, 255, 0.08);
             color: white;
             border-left: 4px solid #4F46E5;
         }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
     </style>
+    <script>
+        // Check dark mode preference
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
 </head>
-<body class="bg-slate-50 text-slate-900 overflow-x-hidden antialiased">
-    <div class="flex min-h-screen">
+<body class="bg-slate-50 text-slate-900 overflow-x-hidden antialiased transition-colors duration-300">
+    <div class="min-h-screen">
+        <!-- Sidebar Backdrop (Mobile) -->
+        <div id="sidebarBackdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[45] hidden md:hidden" onclick="toggleSidebar()"></div>
+
         <!-- Sidebar -->
-        <aside class="fixed inset-y-0 left-0 w-64 bg-secondary text-slate-400 p-6 flex flex-col z-50">
-            <div class="flex items-center gap-3 text-white mb-6">
-                <div class="bg-primary/20 p-2 rounded-lg">
-                    <i data-lucide="bar-chart-3" class="w-6 h-6 text-primary"></i>
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-secondary text-slate-400 p-6 flex flex-col z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
+            <div class="flex items-center justify-between text-white mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="bg-primary/20 p-2 rounded-lg">
+                        <i data-lucide="bar-chart-3" class="w-6 h-6 text-primary"></i>
+                    </div>
+                    <span class="text-xl font-extrabold tracking-tight">ADS Manager</span>
                 </div>
-                <span class="text-xl font-extrabold tracking-tight">ADS Manager</span>
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
             </div>
 
             <a href="{{ url_for('public.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all bg-white/5 border border-white/10 text-white hover:bg-white/10 mb-8">
@@ -49,7 +78,7 @@
                 <span class="font-bold text-sm">Xem Website</span>
             </a>
             
-            <nav class="flex-1 space-y-2">
+            <nav class="flex-1 space-y-2 overflow-y-auto">
                 <a href="{{ url_for('admin.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.dashboard' %}sidebar-active text-white{% endif %}">
                     <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
                     <span class="font-medium">Tổng quan</span>
@@ -67,22 +96,39 @@
                 </a>
                 {% endif %}
 
-                <a href="{{ url_for('reports.reports_page') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'reports.reports_page' %}sidebar-active text-white{% endif %}">
-                    <i data-lucide="pie-chart" class="w-5 h-5"></i>
-                    <span class="font-medium">Xem Báo cáo</span>
-                </a>
+                <!-- Dropdown: Nhật ký & Báo cáo -->
+                <!-- Dropdown: Nhật ký & Báo cáo -->
+                <div class="space-y-1">
+                    {% set is_logs_active = (request.endpoint in ['reports.reports_page', 'admin.log_spending_page']) %}
+                    <button onclick="toggleDropdown('logs-dropdown')" class="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if is_logs_active %}bg-white/5 text-white{% else %}text-slate-400{% endif %} group">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5 {% if is_logs_active %}text-white{% endif %}"></i>
+                            <span class="font-medium">Nhật ký & Báo cáo</span>
+                        </div>
+                        <i data-lucide="chevron-down" id="logs-dropdown-icon" class="w-4 h-4 transition-transform duration-200" style="transform: {% if is_logs_active %}rotate(180deg){% else %}rotate(0deg){% endif %}"></i>
+                    </button>
+                    <div id="logs-dropdown" class="{% if not is_logs_active %}hidden{% endif %} pl-11 space-y-1">
+                        <a href="{{ url_for('reports.reports_page') }}" class="block py-2 text-sm {% if request.endpoint == 'reports.reports_page' %}text-white font-bold{% else %}text-slate-400{% endif %} hover:text-white transition-colors">
+                            Báo cáo chi tiết
+                        </a>
+                        {% if session.get('role') in ['admin', 'marketer'] %}
+                        <a href="{{ url_for('admin.log_spending_page') }}" class="block py-2 text-sm {% if request.endpoint == 'admin.log_spending_page' %}text-white font-bold{% else %}text-slate-400{% endif %} hover:text-white transition-colors">
+                            Cập nhật chi tiêu
+                        </a>
+                        {% endif %}
+                        {% if session.get('role') == 'admin' %}
+                        <a href="{{ url_for('admin.audit_logs_page') }}" class="block py-2 text-sm {% if request.endpoint == 'admin.audit_logs_page' %}text-white font-bold{% else %}text-slate-400{% endif %} hover:text-white transition-colors">
+                            Nhật ký hệ thống
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
 
-                {% if session.get('role') in ['admin', 'marketer'] %}
-                <a href="{{ url_for('admin.log_spending_page') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.log_spending_page' %}sidebar-active text-white{% endif %}">
-                    <i data-lucide="edit-3" class="w-5 h-5"></i>
-                    <span class="font-medium">Cập nhật báo cáo</span>
-                </a>
-                {% endif %}
 
                 {% if session.get('role') == 'admin' %}
                 <a href="{{ url_for('admin.users_page') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.users_page' %}sidebar-active text-white{% endif %}">
                     <i data-lucide="user-cog" class="w-5 h-5"></i>
-                    <span class="font-medium">Quản lý User</span>
+                    <span class="font-medium">Quản lý nhân viên</span>
                 </a>
 
                 <a href="{{ url_for('admin.platforms_page') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.platforms_page' %}sidebar-active text-white{% endif %}">
@@ -115,13 +161,18 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 ml-64 p-8">
-            <header class="flex justify-between items-center mb-10">
-                <div>
-                    <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">{% block page_title %}Dashboard{% endblock %}</h1>
-                    <p class="text-slate-500 mt-1">{% block page_subtitle %}Chào mừng bạn quay lại với hệ thống quản lý ADS.{% endblock %}</p>
+        <main class="flex-1 md:ml-64 p-4 md:p-8 transition-all min-w-0">
+            <header class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-10">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">{% block page_title %}Dashboard{% endblock %}</h1>
+                        <p class="text-slate-500 mt-1 text-sm md:text-base">{% block page_subtitle %}Chào mừng bạn quay lại với hệ thống quản lý ADS.{% endblock %}</p>
+                    </div>
+                    <button onclick="toggleSidebar()" class="md:hidden bg-white p-2.5 rounded-xl border border-slate-200 text-slate-500 shadow-sm">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
                 </div>
-                <div class="flex items-center gap-4">
+                <div class="flex items-center justify-end gap-3 md:gap-4">
                     <div id="clock" class="hidden sm:flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 shadow-sm">
                         <!-- Clock will be injected here -->
                     </div>
@@ -130,34 +181,42 @@
                     <!-- Balance Display for Client -->
                     <div class="flex items-center gap-3 bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-xl shadow-sm">
                         <div class="text-right">
-                            <p class="text-[10px] font-black uppercase tracking-tight text-indigo-400 leading-none mb-1">Số dư tài khoản</p>
+                            <p class="text-[10px] font-black uppercase tracking-tight text-indigo-400 leading-none mb-1">Số dư</p>
                             <p class="text-sm font-black text-indigo-700 leading-none" id="header-balance">
                                 {{ "{:,.0f}".format(balance|default(0)) }}đ
                             </p>
                         </div>
                         <button onclick="openDepositModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-all shadow-md shadow-indigo-100 flex items-center gap-1.5" title="Nạp thêm tiền">
                             <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                            <span class="text-[10px] font-black uppercase">Nạp tiền</span>
                         </button>
                     </div>
                     {% endif %}
+
                     <!-- Notification Bell -->
                     <div class="relative" id="notifWrapper">
                         <button id="notifBtn" onclick="toggleNotifDropdown()" class="relative bg-white p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:text-primary transition-all shadow-sm">
                             <i data-lucide="bell" class="w-5 h-5"></i>
                             <span id="notifBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-[3px] border-2 border-white"></span>
                         </button>
+
                         <!-- Dropdown -->
-                        <div id="notifDropdown" class="hidden absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[200] overflow-hidden">
+                        <div id="notifDropdown" class="hidden absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                             <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
                                 <span class="font-bold text-sm text-slate-700">Thông báo</span>
-                                <button onclick="markAllRead()" class="text-xs text-primary hover:underline font-medium">Đánh dấu tất cả đã đọc</button>
+                                <button onclick="markAllRead()" class="text-[10px] font-black uppercase text-primary hover:underline">Đánh dấu đã đọc</button>
                             </div>
-                            <div id="notifList" class="max-h-72 overflow-y-auto divide-y divide-slate-50">
-                                <div class="text-center text-slate-400 text-sm py-8">Không có thông báo mới</div>
+                            <div id="notifList" class="max-h-[320px] overflow-y-auto divide-y divide-slate-50">
+                                <!-- Notifications will be injected here -->
                             </div>
+                            <a href="#" class="block text-center py-3 text-[10px] font-black uppercase text-slate-400 hover:bg-slate-50 transition-colors border-t border-slate-50">Xem tất cả</a>
                         </div>
                     </div>
+
+                    <!-- Dark Mode Toggle -->
+                    <button onclick="toggleDarkMode()" class="bg-white p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:text-amber-500 transition-all shadow-sm">
+                        <i data-lucide="sun" id="sun-icon" class="w-5 h-5 hidden dark:block"></i>
+                        <i data-lucide="moon" id="moon-icon" class="w-5 h-5 block dark:hidden"></i>
+                    </button>
                 </div>
             </header>
 
@@ -170,7 +229,7 @@
     <!-- Deposit Modal (Simulated) -->
     <div id="depositModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
         <div class="bg-white rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-            <div class="indigo-gradient p-8 text-white relative">
+            <div class="bg-indigo-600 p-8 text-white relative">
                 <button onclick="closeDepositModal()" class="absolute top-6 right-6 text-white/50 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
@@ -201,6 +260,24 @@
     <script>
         // Init Lucide Icons
         lucide.createIcons();
+
+        // Toggle Sidebar (Mobile)
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+        }
 
         // Clock
         function updateClock() {
@@ -339,7 +416,92 @@
             }
         }
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // ── SocketIO & Toast Batching Logic ───────────────────────────────────
+        const socket = io();
+        let toastQueue = [];
+        let toastTimer = null;
+
+        socket.on('connect', () => {
+            console.log('[SocketIO] Connected to server');
+            {% if session.get('user_id') %}
+            socket.emit('join', { user_id: {{ session.get('user_id') }} });
+            {% endif %}
+        });
+
+        // Nhận event budget_warning
+        socket.on('budget_warning', (data) => {
+            processBatchToast(data);
+        });
+
+        function processBatchToast(data) {
+            toastQueue.push(data);
+            if (toastTimer) return;
+
+            toastTimer = setTimeout(() => {
+                showBatchedToast();
+                toastQueue = [];
+                toastTimer = null;
+            }, 2000); // Nhóm thông báo trong vòng 2 giây
+        }
+
+        function showBatchedToast() {
+            if (toastQueue.length === 0) return;
+            
+            let message = "";
+            if (toastQueue.length === 1) {
+                message = toastQueue[0].message;
+            } else {
+                message = `📢 <b>Cảnh báo hệ thống:</b> Có ${toastQueue.length} chiến dịch vừa đạt ngưỡng ngân sách cần tối ưu!`;
+            }
+
+            // Tạo DOM Toast (Tailwind style)
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-6 right-6 z-[9999] bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-4 animate-in slide-in-from-right-10 duration-300';
+            toast.innerHTML = `
+                <div class="bg-amber-500 p-2 rounded-lg">
+                    <i data-lucide="alert-circle" class="w-5 h-5 text-white"></i>
+                </div>
+                <div class="text-sm font-medium">${message}</div>
+                <button onclick="this.parentElement.remove()" class="ml-2 text-white/40 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            `;
+            document.body.appendChild(toast);
+            lucide.createIcons();
+            
+            // Tự động xóa sau 6 giây
+            setTimeout(() => toast.remove(), 6000);
+        }
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            const isSuccess = type === 'success';
+            toast.className = `fixed bottom-6 right-6 z-[9999] ${isSuccess ? 'bg-slate-900' : 'bg-rose-600'} text-white px-6 py-4 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-4 animate-in slide-in-from-right-10 duration-300`;
+            toast.innerHTML = `
+                <div class="${isSuccess ? 'bg-emerald-500' : 'bg-white/20'} p-2 rounded-lg">
+                    <i data-lucide="${isSuccess ? 'check-circle' : 'alert-circle'}" class="w-5 h-5 text-white"></i>
+                </div>
+                <div class="text-sm font-medium">${message}</div>
+                <button onclick="this.parentElement.remove()" class="ml-2 text-white/40 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            `;
+            document.body.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => toast.remove(), 6000);
+        }
+        function showAuditLogs() {
+            // Placeholder: Hiển thị thông báo hoặc chuyển hướng đến trang nhật ký
+            alert('Tính năng Nhật ký hệ thống đang được cập nhật. Bạn có thể xem tạm tại mục Quản lý nạp tiền.');
+        }
+
+        function toggleDropdown(id) {
+            const el = document.getElementById(id);
+            const icon = document.getElementById(id + '-icon');
+            el.classList.toggle('hidden');
+            if (icon) {
+                icon.style.transform = el.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+            }
+        }
+    </script>
     {% block scripts %}{% endblock %}
 </body>
-</html>
 
+</html>

@@ -1,13 +1,15 @@
 from flask import Blueprint, request, jsonify, session, redirect, url_for
 from app.models import UserModel, DBModel
-import mysql.connector
 from pydantic import ValidationError
 from app.forms import LoginSchema, RegisterSchema
+
+from app.extensions import limiter
 
 auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     try:
         data = LoginSchema(**(request.json or {}))
@@ -21,18 +23,20 @@ def login():
 
     if user:
         session.permanent = True
-        session['user_id']    = user['id']
-        session['role']       = user['role']
-        session['username']   = user['username']      # Lưu username để hiển thị trên sidebar
-        session['customer_id'] = user['customer_id']
+        session['user_id']    = user.id
+        session['role']       = user.role
+        session['username']   = user.username      # Lưu username để hiển thị trên sidebar
+        session['customer_id'] = user.customer_id
         return jsonify({
             'success': True,
-            'role': user['role'],
-            'customer_id': user['customer_id']
+            'role': user.role,
+            'customer_id': user.customer_id
         })
 
     return jsonify({'success': False, 'message': 'Tài khoản hoặc mật khẩu không chính xác!'}), 401
 
+
+from sqlalchemy.exc import IntegrityError
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -54,13 +58,13 @@ def register():
             # Lấy thông tin đầy đủ của user vừa tạo
             user = UserModel.get_by_id(user_id)
             session.permanent = True
-            session['user_id']    = user['id']
-            session['role']       = user['role']
-            session['username']   = user['username']
-            session['customer_id'] = user['customer_id']
+            session['user_id']    = user.id
+            session['role']       = user.role
+            session['username']   = user.username
+            session['customer_id'] = user.customer_id
             return jsonify({'success': True})
 
-    except mysql.connector.IntegrityError:
+    except IntegrityError:
         # Trùng username (UNIQUE constraint)
         return jsonify({'success': False, 'message': 'Tên đăng nhập đã tồn tại, vui lòng chọn tên khác!'}), 409
 

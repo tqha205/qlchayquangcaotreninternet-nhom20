@@ -1,521 +1,353 @@
 {% extends "layouts/admin_base.html" %}
 
-{% block title %}Chiến dịch QC - ADS Manager{% endblock %}
-{% block page_title %}Quản lý chiến dịch{% endblock %}
-{% block page_subtitle %}Danh sách toàn bộ các chiến dịch đang chạy trên đa nền tảng.{% endblock %}
+{% block title %}Chiến dịch - ADS Manager Pro{% endblock %}
+{% block page_title %}Quản lý Chiến dịch{% endblock %}
+{% block page_subtitle %}Theo dõi hiệu suất và tối ưu hóa ngân sách theo thời gian thực.{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <style>
-    @keyframes slideIn  { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(110%); opacity: 0; } }
-    .toast-in  { animation: slideIn  0.3s ease forwards; }
-    .toast-out { animation: slideOut 0.3s ease forwards; }
-    .modal-overlay { backdrop-filter: blur(4px); }
+    .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #f8fafc 50%, #f1f5f9 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; }
+    @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .toggle-checkbox:checked { right: 0; border-color: #4f46e5; }
+    .toggle-checkbox:checked + .toggle-label { background-color: #4f46e5; }
+    .platform-btn.active { background-color: #4f46e5; color: white; border-color: #4f46e5; }
+
+    /* Action Dropdown Styles */
+    .action-dropdown {
+        position: absolute;
+        right: 0;
+        margin-top: 0.5rem;
+        width: 14rem; /* w-56 */
+        background-color: white;
+        border-radius: 1rem; /* rounded-2xl */
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); /* shadow-2xl */
+        border: 1px solid #f1f5f9; /* border-slate-100 */
+        z-index: 100;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        transform: scale(0.95);
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-origin: top right;
+    }
+    .action-dropdown.show {
+        transform: scale(1);
+        opacity: 1;
+        pointer-events: auto;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-
-<!-- Toast Container -->
-<div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
-
-
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     MODAL: Sửa chiến dịch
-═══════════════════════════════════════════════════════════════════════════ -->
-<div id="modal-edit" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay bg-slate-900/50">
-    <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl mx-4 animate-in fade-in zoom-in duration-300">
-        <div class="flex items-center justify-between px-8 py-6 border-b border-slate-100">
-            <div class="flex items-center gap-3">
-                <div class="bg-amber-50 p-2 rounded-xl">
-                    <i data-lucide="edit-3" class="w-5 h-5 text-amber-600"></i>
-                </div>
-                <h3 class="text-lg font-extrabold text-slate-900">Chỉnh sửa chiến dịch</h3>
-            </div>
-            <button onclick="closeModal('modal-edit')" class="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
-            </button>
-        </div>
-        <form id="form-edit" onsubmit="event.preventDefault(); submitEditCampaign();" class="p-8 space-y-5">
-            <input type="hidden" id="edit-id">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div class="space-y-1.5 col-span-2">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Tên chiến dịch *</label>
-                    <input type="text" id="edit-name" required
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
-                </div>
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Nền tảng *</label>
-                    <select id="edit-platform"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none">
-                        <option value="Facebook">Facebook</option>
-                        <option value="Google">Google</option>
-                        <option value="TikTok">TikTok</option>
-                        <option value="Zalo">Zalo</option>
-                        <option value="Cốc Cốc">Cốc Cốc</option>
-                    </select>
-                </div>
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Trạng thái</label>
-                    <select id="edit-status"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none">
-                        <option value="Đang chạy">Đang chạy</option>
-                        <option value="Tạm dừng">Tạm dừng</option>
-                        <option value="Kết thúc">Kết thúc</option>
-                    </select>
-                </div>
-                <div class="space-y-1.5 col-span-2 md:col-span-1">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Ngân sách (VNĐ) *</label>
-                    <input type="number" id="edit-budget" required min="1"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
-                </div>
-                <div class="space-y-1.5 col-span-2 md:col-span-1">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Link quảng cáo</label>
-                    <input type="url" id="edit-link" placeholder="https://..."
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
-                </div>
-                <div class="space-y-1.5 col-span-2 md:col-span-1">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Chi phí đã tiêu</label>
-                    <input type="number" id="edit-spent" min="0"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
-                </div>
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Ngày bắt đầu</label>
-                    <input type="date" id="edit-start-date"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
-                </div>
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Ngày kết thúc</label>
-                    <input type="date" id="edit-end-date"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
-                </div>
-            </div>
-            <div class="flex gap-3 pt-2">
-                <button type="button" onclick="closeModal('modal-edit')"
-                    class="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                    Hủy
-                </button>
-                <button type="submit" id="btn-edit-submit"
-                    class="flex-1 py-3 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-all flex items-center justify-center gap-2">
-                    <i data-lucide="save" class="w-4 h-4"></i> Lưu thay đổi
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     MODAL: Xác nhận xóa
-═══════════════════════════════════════════════════════════════════════════ -->
-<div id="modal-delete" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay bg-slate-900/50">
-    <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl mx-4 p-8 animate-in fade-in zoom-in duration-300">
-        <div class="text-center">
-            <div class="bg-red-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                <i data-lucide="trash-2" class="w-8 h-8 text-red-500"></i>
-            </div>
-            <h3 class="text-xl font-extrabold text-slate-900 mb-2">Xác nhận xóa chiến dịch</h3>
-            <p class="text-slate-500 text-sm mb-2">Bạn có chắc chắn muốn xóa chiến dịch</p>
-            <p id="delete-cam-name" class="font-bold text-slate-900 mb-2"></p>
-            <p class="text-red-400 text-xs font-semibold bg-red-50 py-2 px-4 rounded-xl">Hành động này không thể hoàn tác!</p>
-        </div>
-        <input type="hidden" id="delete-cam-id">
-        <div class="flex gap-3 mt-6">
-            <button onclick="closeModal('modal-delete')"
-                class="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                Hủy
-            </button>
-            <button onclick="confirmDelete()" id="btn-confirm-delete"
-                class="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2">
-                <i data-lucide="trash-2" class="w-4 h-4"></i> Xóa
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     BẢNG CHIẾN DỊCH
-═══════════════════════════════════════════════════════════════════════════ -->
-<div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <!-- Toolbar -->
-    <div class="px-8 py-6 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-50/30">
-        <div class="flex gap-4 w-full md:w-auto">
-            <div class="relative flex-1 md:w-80">
+<div class="space-y-6 pb-20">
+    <!-- TOOLBAR: SEARCH-FIRST & FILTERS -->
+    <div class="bg-white rounded-[2rem] p-4 border border-slate-100 shadow-sm flex flex-col xl:flex-row gap-4 items-center justify-between">
+        <div class="flex flex-col md:flex-row items-center gap-3 w-full xl:w-auto">
+            <!-- Search -->
+            <div class="relative w-full md:w-80">
                 <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
-                <input type="text" id="search-input" placeholder="Tìm kiếm chiến dịch..." oninput="filterTable()"
-                    class="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all">
+                <input type="text" id="search-input" placeholder="Tìm tên chiến dịch, khách hàng..." 
+                       class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all">
             </div>
-            <select id="filter-platform" onchange="filterTable()"
-                class="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none pr-8">
-                <option value="">Tất cả nền tảng</option>
-                <option value="Facebook">Facebook</option>
-                <option value="Google">Google</option>
-                <option value="TikTok">TikTok</option>
-                <option value="Zalo">Zalo</option>
-                <option value="Cốc Cốc">Cốc Cốc</option>
-            </select>
+            
+            <!-- Platforms Filter -->
+            <div class="flex items-center p-1 bg-slate-50 rounded-2xl border border-slate-100">
+                <button onclick="togglePlatform('all', this)" class="platform-btn active px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2">Tất cả</button>
+                <button onclick="togglePlatform('Facebook', this)" class="platform-btn px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-500 hover:text-indigo-600">
+                    <i data-lucide="facebook" class="w-3.5 h-3.5"></i> FB
+                </button>
+                <button onclick="togglePlatform('Google', this)" class="platform-btn px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-500 hover:text-indigo-600">
+                    <i data-lucide="search" class="w-3.5 h-3.5"></i> GG
+                </button>
+                <button onclick="togglePlatform('TikTok', this)" class="platform-btn px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-500 hover:text-indigo-600">
+                    <i data-lucide="music-2" class="w-3.5 h-3.5"></i> TT
+                </button>
+            </div>
         </div>
-        <a href="{{ url_for('admin.create_campaign') }}"
-            class="w-full md:w-auto bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
-            <i data-lucide="plus" class="w-4 h-4"></i> Tạo quảng cáo
-        </a>
+
+        <div class="flex items-center gap-3 w-full xl:w-auto justify-end">
+            <!-- Status Multi-select (Simple version) -->
+            <select id="status-filter" class="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-600 focus:outline-none">
+                <option value="all">Tất cả Trạng thái</option>
+                <option value="Đang chạy">Đang chạy</option>
+                <option value="Tạm dừng">Tạm dừng</option>
+                <option value="Kết thúc">Kết thúc</option>
+                <option value="Chờ duyệt">Chờ duyệt</option>
+            </select>
+
+            <!-- Date Range Picker -->
+            <div id="reportrange" class="bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm cursor-pointer flex items-center gap-2 hover:border-indigo-300 transition-colors">
+                <i data-lucide="calendar" class="w-4 h-4 text-indigo-500"></i>
+                <span class="text-xs font-bold text-slate-600"></span>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </div>
+
+            <button onclick="location.href='{{ url_for('admin.create_campaign') }}'" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center gap-2 whitespace-nowrap">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i> Tạo mới
+            </button>
+        </div>
     </div>
 
-    <!-- Table -->
-    <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-            <thead>
-                <tr class="bg-slate-50/50">
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">#ID</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Chiến dịch</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Khách hàng</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Nền tảng</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Ngân sách</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Tiến độ</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Hiệu quả</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Trạng thái</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Preview</th>
-                    <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Thao tác</th>
-                </tr>
-            </thead>
-            <tbody id="campaign-list" class="divide-y divide-slate-50">
-                <tr id="table-loading">
-                    <td colspan="9" class="px-6 py-16 text-center">
-                        <div class="flex flex-col items-center gap-3">
-                            <span class="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></span>
-                            <span class="text-sm text-slate-400 font-medium">Đang tải dữ liệu...</span>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    <!-- Footer -->
-    <div class="px-6 py-4 bg-slate-50/30 border-t border-slate-50 flex items-center justify-between">
-        <span id="table-count" class="text-xs text-slate-400 font-medium"></span>
-        <span class="text-xs text-slate-400">Cập nhật tự động mỗi 60s</span>
+    <!-- DATA TABLE: ADS-STYLE -->
+    <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm">
+        <div class="overflow-visible">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50/50">
+                        <th class="w-12 px-6 py-5">
+                            <input type="checkbox" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                        </th>
+                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Tên chiến dịch</th>
+                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Trạng thái</th>
+                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Ngân sách (Spent)</th>
+                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">CTR / CPC</th>
+                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="campaign-list" class="divide-y divide-slate-50">
+                    <!-- Skeleton Loading by default -->
+                    {% for i in range(5) %}
+                    <tr class="loading-skeleton">
+                        <td class="px-6 py-6"><div class="w-4 h-4 skeleton rounded"></div></td>
+                        <td class="px-6 py-6">
+                            <div class="h-4 w-48 skeleton rounded mb-2"></div>
+                            <div class="h-3 w-24 skeleton rounded"></div>
+                        </td>
+                        <td class="px-6 py-6"><div class="h-6 w-20 skeleton rounded-full"></div></td>
+                        <td class="px-6 py-6">
+                            <div class="h-4 w-24 skeleton rounded mb-2"></div>
+                            <div class="h-1.5 w-32 skeleton rounded"></div>
+                        </td>
+                        <td class="px-6 py-6"><div class="h-4 w-16 skeleton rounded"></div></td>
+                        <td class="px-6 py-6 text-right"><div class="h-8 w-8 skeleton rounded-lg ml-auto"></div></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+
 <script>
-// ─── Dữ liệu toàn cục ─────────────────────────────────────────────────────
 let allCampaigns = [];
-const userRole   = "{{ session.get('role', '') }}";
+let currentPlatform = 'all';
 
-// ─── Toast System ─────────────────────────────────────────────────────────
-function showToast(message, type = 'success') {
-    const container = document.getElementById('toast-container');
-    const configs   = {
-        success: { bg: 'bg-emerald-500', icon: 'check-circle' },
-        error:   { bg: 'bg-red-500',     icon: 'x-circle'     },
-        warning: { bg: 'bg-amber-500',   icon: 'alert-triangle'},
-    };
-    const cfg   = configs[type] || configs.success;
-    const toast = document.createElement('div');
-    toast.className = `pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl
-                       text-white text-sm font-semibold shadow-2xl max-w-sm toast-in ${cfg.bg}`;
-    toast.innerHTML = `<i data-lucide="${cfg.icon}" class="w-5 h-5 flex-shrink-0"></i><span>${message}</span>`;
-    container.appendChild(toast);
-    lucide.createIcons();
-    setTimeout(() => {
-        toast.classList.replace('toast-in', 'toast-out');
-        setTimeout(() => toast.remove(), 300);
-    }, 3500);
-}
+$(function() {
+    // 1. DATE RANGE PICKER
+    var start = moment().subtract(29, 'days');
+    var end   = moment();
+    function cb(start, end) {
+        $('#reportrange span').html(start.format('DD/MM/YYYY') + ' - ' + end.format('DD/MM/YYYY'));
+        loadCampaigns();
+    }
+    $('#reportrange').daterangepicker({
+        startDate: start, endDate: end,
+        ranges: {
+           'Hôm nay': [moment(), moment()],
+           '7 ngày qua': [moment().subtract(6, 'days'), moment()],
+           '30 ngày qua': [moment().subtract(29, 'days'), moment()],
+           'Tháng này': [moment().startOf('month'), moment().endOf('month')]
+        }
+    }, cb);
+    cb(start, end);
 
-// ─── Modal Helpers ─────────────────────────────────────────────────────────
-function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
-function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-
-// Đóng modal khi click ra ngoài
-['modal-edit', 'modal-delete'].forEach(id => {
-    document.getElementById(id).addEventListener('click', e => {
-        if (e.target === e.currentTarget) closeModal(id);
-    });
+    // 2. SEARCH & FILTER EVENTS
+    $('#search-input').on('input', filterData);
+    $('#status-filter').on('change', filterData);
 });
 
-// ─── Platform Badge Color ─────────────────────────────────────────────────
-function platformColor(p) {
-    const map = { Facebook: 'bg-blue-50 text-blue-600', Google: 'bg-red-50 text-red-600',
-                  TikTok: 'bg-slate-900 text-white', 'Cốc Cốc': 'bg-emerald-50 text-emerald-600',
-                  Zalo: 'bg-blue-50 text-blue-500' };
-    return map[p] || 'bg-slate-100 text-slate-600';
+async function loadCampaigns() {
+    try {
+        const res = await fetch("{{ url_for('admin.get_campaigns') }}");
+        allCampaigns = await res.json();
+        renderCampaigns(allCampaigns);
+    } catch (e) {
+        console.error("Lỗi tải chiến dịch:", e);
+    }
 }
 
-// ─── Status Badge Color ───────────────────────────────────────────────────
-function statusConfig(s) {
-    if (s === 'Đang chạy' || s === 'Active')
-        return { bg: 'bg-emerald-50 text-emerald-600', dot: 'bg-emerald-500' };
-    if (s === 'Tạm dừng')
-        return { bg: 'bg-amber-50 text-amber-600',   dot: 'bg-amber-500'   };
-    if (s === 'Chờ duyệt' || s === 'pending')
-        return { bg: 'bg-indigo-50 text-indigo-600', dot: 'bg-indigo-500' };
-    if (s === 'Từ chối' || s === 'rejected')
-        return { bg: 'bg-red-50 text-red-600', dot: 'bg-red-500' };
-    return      { bg: 'bg-slate-100 text-slate-500',  dot: 'bg-slate-400'   };
+function togglePlatform(platform, btn) {
+    currentPlatform = platform;
+    $('.platform-btn').removeClass('active').addClass('text-slate-500');
+    $(btn).addClass('active').removeClass('text-slate-500');
+    filterData();
 }
 
-// ─── Efficiency Badge ─────────────────────────────────────────────────────
-function efficiencyBadge(label, color) {
-    const map = {
-        emerald: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-        amber:   'bg-amber-50 text-amber-700 border border-amber-200',
-        red:     'bg-red-50 text-red-700 border border-red-200 animate-pulse',
-    };
-    return `<span class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${map[color] || map.emerald}">${label}</span>`;
+function filterData() {
+    const q = $('#search-input').val().toLowerCase();
+    const s = $('#status-filter').val();
+    
+    const filtered = allCampaigns.filter(c => {
+        const matchesSearch = (c.name||'').toLowerCase().includes(q) || (c.customer_name||'').toLowerCase().includes(q);
+        const matchesStatus = s === 'all' || c.status === s;
+        const matchesPlatform = currentPlatform === 'all' || c.platform === currentPlatform;
+        return matchesSearch && matchesStatus && matchesPlatform;
+    });
+    
+    renderCampaigns(filtered);
 }
 
-// ─── Render Table ─────────────────────────────────────────────────────────
-function renderTable(campaigns) {
-    const tbody = document.getElementById('campaign-list');
-    document.getElementById('table-count').textContent = `Hiển thị ${campaigns.length} chiến dịch`;
-
-    if (!campaigns.length) {
-        tbody.innerHTML = `
-            <tr><td colspan="9" class="px-6 py-16 text-center">
-                <div class="flex flex-col items-center gap-3">
-                    <i data-lucide="inbox" class="w-12 h-12 text-slate-200"></i>
-                    <p class="text-slate-400 font-medium">Chưa có chiến dịch nào</p>
-                </div>
-            </td></tr>`;
-        lucide.createIcons();
+function renderCampaigns(list) {
+    const tbody = $('#campaign-list');
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-20 text-center text-slate-400">Không tìm thấy chiến dịch nào.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = campaigns.map(c => {
-        const pct   = c.budget ? Math.min(Math.round(c.spent / c.budget * 100), 100) : 0;
-        const pctColor = pct >= 90 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-primary';
-        const sc    = statusConfig(c.status);
-        const canDelete = userRole === 'admin';
+    const html = list.map(c => {
+        const spent = parseFloat(c.spent || 0);
+        const budget = parseFloat(c.budget || 0);
+        const progress = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+        
+        // Chỉ số thực tế hoặc 0 nếu chưa duyệt/chưa có dữ liệu
+        const isApproved = (c.status !== 'Chờ duyệt' && c.approval_status !== 'pending');
+        const ctr = isApproved ? (c.ctr || 0).toFixed(2) : "0.00";
+        const cpc = isApproved ? (c.cpc || 0).toFixed(0) : "0";
 
         return `
-        <tr class="hover:bg-slate-50/50 transition-colors group" data-name="${(c.name||'').toLowerCase()}" data-platform="${c.platform||''}">
-            <td class="px-6 py-5 text-xs font-bold text-slate-400">#${c.id}</td>
-            <td class="px-6 py-5">
-                <div class="flex items-center gap-2">
-                    <a href="/admin/campaigns/${c.id}" class="font-bold text-slate-900 text-sm whitespace-nowrap hover:text-primary hover:underline transition-colors">${c.name}</a>
-                    ${c.target_link ? `<a href="${c.target_link.startsWith('http') ? c.target_link : 'https://'+c.target_link}" target="_blank" class="p-1.5 bg-indigo-50 text-primary rounded-lg hover:bg-primary hover:text-white transition-all shadow-sm" title="Xem Trang Đích">
-                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                    </a>` : ''}
-                </div>
-                <span class="text-[10px] text-slate-400 lowercase">${c.start_date ? c.start_date.substring(0,10) : ''} → ${c.end_date ? c.end_date.substring(0,10) : '∞'}</span>
-            </td>
-            <td class="px-6 py-5">
-                <a href="/admin/customers/${c.customer_id}" class="text-sm font-bold text-slate-600 hover:text-primary transition-colors truncate max-w-[150px] block" title="Xem chi tiết khách hàng: ${c.customer_name || ''}">${c.customer_name || 'N/A'}</a>
-                ${c.target_link ? `<a href="${c.target_link.startsWith('http') ? c.target_link : 'https://'+c.target_link}" target="_blank" class="text-[10px] text-slate-400 hover:text-primary hover:underline truncate max-w-[150px] block mt-1" title="${c.target_link}">${c.target_link}</a>` : ''}
-            </td>
-            <td class="px-6 py-5">
-                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${platformColor(c.platform)}">${c.platform || '-'}</span>
-            </td>
-            <td class="px-6 py-5">
-                <div class="font-extrabold text-slate-900 text-sm">${(c.budget/1000000).toFixed(1)}M</div>
-                <div class="text-[10px] text-slate-400 font-bold">Đã tiêu: ${(c.spent/1000000).toFixed(1)}M</div>
-            </td>
-            <td class="px-6 py-5 min-w-[140px]">
-                <div class="flex items-center justify-between mb-1.5">
-                    <span class="text-[10px] font-black text-primary">${pct}%</span>
-                    <span class="text-[10px] font-bold text-slate-300">Budget</span>
-                </div>
-                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div class="h-full ${pctColor} transition-all duration-1000 rounded-full" style="width:${pct}%"></div>
-                </div>
-            </td>
-            <td class="px-6 py-5">
-                ${efficiencyBadge(c.efficiency_label, c.efficiency_css)}
-            </td>
-            <td class="px-6 py-5">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${sc.bg}">
-                    <span class="w-1.5 h-1.5 rounded-full ${sc.dot} ${c.status==='Đang chạy'?'animate-pulse':''}"></span>
-                    ${c.status}
-                </span>
-            </td>
-            <td class="px-6 py-5">
-                <a href="/admin/ad/preview/${c.id}" class="p-2 bg-slate-50 text-slate-400 hover:bg-indigo-600 hover:text-white rounded-xl transition-all inline-flex items-center justify-center" title="Xem trước Ad Mockup">
-                    <i data-lucide="smartphone" class="w-4 h-4"></i>
-                </a>
-            </td>
-            <td class="px-6 py-5 text-right">
-                <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    ${userRole === 'admin' && c.approval_status === 'pending' ? `
-                    <button onclick="approveCampaign(${c.id})"
-                        class="p-2 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all" title="Duyệt chiến dịch">
-                        <i data-lucide="check-circle" class="w-4 h-4"></i>
-                    </button>
-                    <button onclick="rejectCampaign(${c.id})"
-                        class="p-2 bg-red-50 border border-red-100 rounded-lg text-red-600 hover:bg-red-600 hover:text-white transition-all" title="Từ chối chiến dịch">
-                        <i data-lucide="x-circle" class="w-4 h-4"></i>
-                    </button>` : ''}
-                    <a href="/admin/campaigns/${c.id}"
-                        class="p-2 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all" title="Xem chi tiết">
-                        <i data-lucide="eye" class="w-4 h-4"></i>
-                    </a>
-                    ${userRole !== 'client' ? `
-                    <button onclick="openEditModal(${c.id})"
-                        class="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-amber-500 hover:border-amber-200 transition-all" title="Chỉnh sửa">
-                        <i data-lucide="edit-3" class="w-4 h-4"></i>
-                    </button>` : ''}
-                    ${canDelete ? `
-                    <button onclick="openDeleteModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')"
-                        class="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-red-500 hover:border-red-200 transition-all" title="Xóa">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    </button>` : ''}
-                </div>
-            </td>
-        </tr>`;
+            <tr class="hover:bg-slate-50/50 transition-all group">
+                <td class="px-6 py-5"><input type="checkbox" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"></td>
+                <td class="px-6 py-5">
+                    <div class="flex flex-col">
+                        <a href="/admin/campaigns/${c.id}" class="text-sm font-black text-slate-900 hover:text-indigo-600 transition-colors">${c.name}</a>
+                        <span class="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase">
+                            <i data-lucide="${c.platform.toLowerCase() === 'facebook' ? 'facebook' : 'search'}" class="w-3 h-3"></i>
+                            ${c.platform} · ${c.customer_name}
+                        </span>
+                    </div>
+                </td>
+                <td class="px-6 py-5">
+                    <div class="flex items-center gap-3">
+                        <!-- Toggle Switch -->
+                        <div class="relative inline-block w-8 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="toggle" id="t-${c.id}" ${c.status === 'Đang chạy' ? 'checked' : ''} 
+                                   onchange="toggleStatus(${c.id}, this)"
+                                   class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                            <label for="t-${c.id}" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-200 cursor-pointer"></label>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider
+                                   ${c.status === 'Đang chạy' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}">
+                            ${c.status}
+                        </span>
+                    </div>
+                </td>
+                <td class="px-6 py-5">
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex justify-between items-baseline">
+                            <span class="text-xs font-black text-slate-800">${new Intl.NumberFormat('vi-VN').format(spent)}đ</span>
+                            <span class="text-[10px] font-bold text-slate-400">/ ${new Intl.NumberFormat('vi-VN').format(budget)}đ</span>
+                        </div>
+                        <div class="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full ${progress > 90 ? 'bg-rose-500' : 'bg-indigo-600'} transition-all duration-500" style="width: ${progress}%"></div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-5">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-black text-slate-700">${ctr}% <span class="text-slate-300 font-medium">CTR</span></span>
+                        <span class="text-[10px] font-bold text-slate-400">${new Intl.NumberFormat('vi-VN').format(cpc)}đ <span class="text-slate-300">CPC</span></span>
+                    </div>
+                </td>
+                <td class="px-6 py-5 text-right">
+                    <div class="flex items-center justify-end gap-2 transition-all opacity-0 group-hover:opacity-100">
+                        <a href="/admin/campaigns/${c.id}" title="Báo cáo chi tiết" 
+                           class="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
+                            <i data-lucide="line-chart" class="w-4 h-4"></i>
+                        </a>
+                        
+                        <div class="relative inline-block text-left">
+                            <button onclick="toggleMenu(${c.id}, event)" 
+                                    class="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition-all focus:ring-2 focus:ring-indigo-500/20">
+                                <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+                            </button>
+                            
+                            <div id="menu-${c.id}" class="action-dropdown">
+                                <div class="px-4 py-2 border-b border-slate-50 mb-1 bg-slate-50/50">
+                                    <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Tùy chọn chiến dịch</p>
+                                </div>
+                                <a href="/admin/campaigns/${c.id}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+                                    <i data-lucide="eye" class="w-4 h-4 opacity-50"></i> Xem chi tiết & Báo cáo
+                                </a>
+                                <a href="/admin/log-spending?campaign_id=${c.id}" class="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+                                    <i data-lucide="edit-3" class="w-4 h-4 opacity-50"></i> Cập nhật chi tiêu
+                                </a>
+                                <div class="h-px bg-slate-50 my-1"></div>
+                                <button onclick="deleteCampaign(${c.id}, '${c.name}')" 
+                                        class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-rose-500 hover:bg-rose-50 transition-colors text-left">
+                                    <i data-lucide="trash-2" class="w-4 h-4 opacity-70"></i> Xóa chiến dịch
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
     }).join('');
-
+    
+    tbody.html(html);
     lucide.createIcons();
 }
 
-// ─── Load Campaigns ────────────────────────────────────────────────────────
-async function loadCampaigns() {
+async function toggleStatus(id, el) {
+    const newStatus = el.checked ? 'Đang chạy' : 'Tạm dừng';
     try {
-        const res  = await fetch("{{ url_for('admin.get_campaigns') }}");
-        const data = await res.json();
-        allCampaigns = data;
-        filterTable();
-    } catch (err) {
-        document.getElementById('campaign-list').innerHTML =
-            `<tr><td colspan="9" class="px-6 py-12 text-center text-red-400 text-sm font-bold">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
-    }
-}
-
-// ─── Approve/Reject Campaigns ─────────────────────────────────────────────
-async function approveCampaign(id) {
-    if(!confirm("Bạn có chắc chắn muốn duyệt chiến dịch này để bắt đầu chạy?")) return;
-    try {
-        const res = await fetch(`/admin/api/campaigns/${id}/approve`, { method: 'PUT' });
-        const result = await res.json();
-        if(result.success) {
-            showToast(result.message, 'success');
-            loadCampaigns();
-        } else {
-            showToast(result.message, 'error');
-        }
-    } catch(e) { showToast('Lỗi hệ thống', 'error'); }
-}
-
-async function rejectCampaign(id) {
-    if(!confirm("Bạn có chắc chắn muốn từ chối chiến dịch này?")) return;
-    try {
-        const res = await fetch(`/admin/api/campaigns/${id}/reject`, { method: 'PUT' });
-        const result = await res.json();
-        if(result.success) {
-            showToast(result.message, 'success');
-            loadCampaigns();
-        } else {
-            showToast(result.message, 'error');
-        }
-    } catch(e) { showToast('Lỗi hệ thống', 'error'); }
-}
-
-// ─── Filter Table ──────────────────────────────────────────────────────────
-function filterTable() {
-    const q  = (document.getElementById('search-input').value || '').toLowerCase();
-    const pf = document.getElementById('filter-platform').value;
-    const filtered = allCampaigns.filter(c => {
-        const matchName = !q || (c.name||'').toLowerCase().includes(q) || (c.customer_name||'').toLowerCase().includes(q);
-        const matchPf   = !pf || c.platform === pf;
-        return matchName && matchPf;
-    });
-    renderTable(filtered);
-}
-
-
-// ─── Open Edit Modal ───────────────────────────────────────────────────────
-function openEditModal(id) {
-    const c = allCampaigns.find(x => x.id === id);
-    if (!c) return;
-    document.getElementById('edit-id').value         = c.id;
-    document.getElementById('edit-name').value       = c.name;
-    document.getElementById('edit-platform').value   = c.platform;
-    document.getElementById('edit-link').value       = c.target_link || '';
-    document.getElementById('edit-status').value     = c.status;
-    document.getElementById('edit-budget').value     = c.budget;
-    document.getElementById('edit-spent').value      = c.spent;
-    document.getElementById('edit-start-date').value = c.start_date ? c.start_date.substring(0,10) : '';
-    document.getElementById('edit-end-date').value   = c.end_date   ? c.end_date.substring(0,10)   : '';
-    openModal('modal-edit');
-    lucide.createIcons();
-}
-
-// ─── Open Delete Modal ─────────────────────────────────────────────────────
-function openDeleteModal(id, name) {
-    document.getElementById('delete-cam-id').value = id;
-    document.getElementById('delete-cam-name').textContent = `"${name}"`;
-    openModal('modal-delete');
-    lucide.createIcons();
-}
-
-
-// ─── Submit Edit ───────────────────────────────────────────────────────────
-async function submitEditCampaign() {
-    const id   = document.getElementById('edit-id').value;
-    const btn  = document.getElementById('btn-edit-submit');
-    const orig = btn.innerHTML;
-    btn.innerHTML = '<span class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span> Đang lưu...';
-    btn.disabled = true;
-
-    const payload = {
-        name:        document.getElementById('edit-name').value,
-        platform:    document.getElementById('edit-platform').value,
-        target_link: document.getElementById('edit-link').value,
-        status:      document.getElementById('edit-status').value,
-        budget:      document.getElementById('edit-budget').value,
-        spent:       document.getElementById('edit-spent').value,
-        start_date:  document.getElementById('edit-start-date').value || null,
-        end_date:    document.getElementById('edit-end-date').value   || null,
-    };
-
-    try {
-        const res    = await fetch(`/admin/api/campaigns/${id}/update`, {
-            method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        await fetch(`/admin/api/campaigns/${id}/update`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
+            body: JSON.stringify({ status: newStatus, name: allCampaigns.find(x=>x.id===id).name })
         });
-        const result = await res.json();
-        if (result.success) {
-            showToast(result.message, 'success');
-            closeModal('modal-edit');
-            loadCampaigns();
-        } else {
-            showToast(result.message, 'error');
-        }
-    } catch (e) { showToast('Lỗi kết nối server!', 'error'); }
-    finally { btn.innerHTML = orig; btn.disabled = false; lucide.createIcons(); }
-}
-
-// ─── Confirm Delete ────────────────────────────────────────────────────────
-async function confirmDelete() {
-    const id  = document.getElementById('delete-cam-id').value;
-    const btn = document.getElementById('btn-confirm-delete');
-    btn.innerHTML = '<span class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>';
-    btn.disabled  = true;
-
-    try {
-        const res    = await fetch(`/admin/api/campaigns/${id}/delete`, { method: 'DELETE' });
-        const result = await res.json();
-        if (result.success) {
-            showToast(result.message, 'success');
-            closeModal('modal-delete');
-            loadCampaigns();
-        } else {
-            showToast(result.message, 'error');
-        }
-    } catch (e) { showToast('Lỗi kết nối server!', 'error'); }
-    finally {
-        btn.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i> Xóa';
-        btn.disabled = false;
-        lucide.createIcons();
+        loadCampaigns();
+    } catch(e) {
+        alert("Không thể cập nhật trạng thái!");
+        el.checked = !el.checked;
     }
 }
 
-// ─── Init ──────────────────────────────────────────────────────────────────
-loadCampaigns();
-setInterval(loadCampaigns, 60000); // Auto-refresh mỗi 60 giây
-
-// Tự động chuyển hướng nếu có tham số add=1 (khách hàng click từ Dashboard)
-if (window.location.search.includes('add=1')) {
-    window.location.href = "{{ url_for('admin.create_campaign') }}";
+// ── ACTION MENU HANDLERS ──────────────────────────────────────────────────
+function toggleMenu(id, event) {
+    event.stopPropagation();
+    const menu = document.getElementById(`menu-${id}`);
+    const isShowing = menu.classList.contains('show');
+    
+    closeAllMenus();
+    
+    if (!isShowing) {
+        menu.classList.add('show');
+    }
 }
+
+function closeAllMenus() {
+    document.querySelectorAll('.action-dropdown').forEach(m => m.classList.remove('show'));
+}
+
+async function deleteCampaign(id, name) {
+    if (!confirm(`Bạn có chắc chắn muốn xóa chiến dịch "${name}"? Hành động này không thể hoàn tác.`)) return;
+    
+    try {
+        const res = await fetch(`/admin/api/campaigns/${id}/delete`, {
+            method: 'DELETE',
+            headers: {'X-CSRFToken': '{{ csrf_token() }}'}
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadCampaigns();
+        } else {
+            alert(data.message || "Không thể xóa chiến dịch!");
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Lỗi khi xóa chiến dịch!");
+    }
+}
+
+// Close menus on click outside
+document.addEventListener('click', closeAllMenus);
 </script>
 {% endblock %}

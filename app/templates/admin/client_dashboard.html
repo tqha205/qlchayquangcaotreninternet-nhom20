@@ -7,14 +7,21 @@
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
-<script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+
 <style>
-    .banner-gradient { background: linear-gradient(102deg, #2563eb 0%, #4f46e5 100%); }
-    .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-    .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
-    .indigo-soft { background-color: rgba(79, 70, 229, 0.05); }
+    .banner-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+    .glass-card { 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(12px); 
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .card-hover { transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); }
+    .card-hover:hover { 
+        transform: translateY(-8px) scale(1.01); 
+        box-shadow: 0 30px 60px -12px rgba(50, 50, 93, 0.15), 0 18px 36px -18px rgba(0, 0, 0, 0.2); 
+    }
+    .border-gradient-blue { border-left: 5px solid #4f46e5; }
+    .border-gradient-green { border-left: 5px solid #10b981; }
 </style>
 {% endblock %}
 
@@ -46,7 +53,7 @@
                 <h2 class="text-3xl font-black leading-tight" id="burn-rate-title">Đang tính toán...</h2>
                 <p class="text-indigo-100 text-sm leading-relaxed max-w-md" id="burn-rate-desc">Dựa trên mức tiêu trung bình 7 ngày qua, tài khoản của bạn đang hoạt động ổn định.</p>
                 <div class="flex gap-4 pt-2">
-                    <button class="bg-white text-indigo-600 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-indigo-50 transition-all" onclick="location.href='/deposit'">Nạp thêm tiền</button>
+                    <button class="bg-white text-indigo-600 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-indigo-50 transition-all" onclick="location.href='{{ url_for('admin.deposit_page') }}'">Nạp thêm tiền</button>
                 </div>
             </div>
             <div class="w-40 h-40 bg-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md border border-white/20 relative z-10">
@@ -72,49 +79,45 @@
         </div>
     </div>
 
-    <!-- Advanced KPI Grid -->
+    <!-- Budget Alerts -->
+    <div id="budget-alert-container"></div>
+
+    <!-- Advanced KPI Grid (The 3-Second Rule) -->
+
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm card-hover">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500">
-                    <i data-lucide="eye" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Lượt hiển thị</p>
-                    <h4 class="text-xl font-black text-slate-900" id="stat-impressions">0</h4>
+        <div class="glass-card p-7 rounded-[2rem] card-hover border-gradient-blue">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3">Tổng chi tiêu</p>
+            <div class="flex items-end justify-between">
+                <h4 class="text-2xl font-black text-slate-900" id="total-spent-kpi">0đ</h4>
+                <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500">
+                    <i data-lucide="credit-card" class="w-5 h-5"></i>
                 </div>
             </div>
         </div>
-        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm card-hover">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
-                    <i data-lucide="mouse-pointer-2" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Lượt nhấn</p>
-                    <h4 class="text-xl font-black text-slate-900" id="stat-clicks">0</h4>
+        <div class="glass-card p-7 rounded-[2rem] card-hover border-gradient-green">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3">Chuyển đổi</p>
+            <div class="flex items-end justify-between">
+                <h4 class="text-2xl font-black text-slate-900" id="stat-conversions">0</h4>
+                <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500">
+                    <i data-lucide="target" class="w-5 h-5"></i>
                 </div>
             </div>
         </div>
-        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm card-hover border-b-4 border-b-indigo-500">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500">
-                    <i data-lucide="users" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Tổng Chuyển Đổi</p>
-                    <h4 class="text-xl font-black text-slate-900" id="stat-conversions">0</h4>
+        <div class="glass-card p-7 rounded-[2rem] card-hover">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3">Giá mỗi Lead (CPL)</p>
+            <div class="flex items-end justify-between">
+                <h4 class="text-2xl font-black text-slate-900" id="stat-cpl">0đ</h4>
+                <div class="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500">
+                    <i data-lucide="pie-chart" class="w-5 h-5"></i>
                 </div>
             </div>
         </div>
-        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm card-hover border-b-4 border-b-emerald-500">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500">
-                    <i data-lucide="dollar-sign" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Giá mỗi Lead (CPL)</p>
-                    <h4 class="text-xl font-black text-slate-900" id="stat-cpl">0đ</h4>
+        <div class="glass-card p-7 rounded-[2rem] card-hover bg-indigo-600 !border-none">
+            <p class="text-[10px] font-black text-indigo-200 uppercase tracking-[0.15em] mb-3">Số dư khả dụng</p>
+            <div class="flex items-end justify-between text-white">
+                <h4 class="text-2xl font-black" id="current-balance-card">0đ</h4>
+                <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <i data-lucide="wallet" class="w-5 h-5"></i>
                 </div>
             </div>
         </div>
@@ -179,6 +182,8 @@
 {% endblock %}
 
 {% block scripts %}
+<script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script>
 $(function() {
     // ── DATE RANGE PICKER ───────────────────────────────────────────────────
@@ -206,25 +211,26 @@ $(function() {
 
     // ── LOAD DATA ──────────────────────────────────────────────────────────
     async function loadData(s, e) {
-        loadCampaigns();
-        loadClientMetrics();
+        loadCampaigns(s, e);
+        loadClientMetrics(s, e);
         loadCreativeQueue();
         loadPlatformStatus();
     }
 
-    async function loadCampaigns() {
-        const res = await fetch("{{ url_for('admin.get_campaigns') }}");
+    async function loadCampaigns(start, end) {
+        let url = "{{ url_for('admin.get_campaigns') }}";
+        if (start && end) url += `?start_date=${start}&end_date=${end}`;
+
+        const res = await fetch(url);
         const data = await res.json();
         const tbody = document.getElementById('campaigns-tbody');
-
-        let totalImpressions = 0, totalClicks = 0, totalSpent = 0;
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="px-8 py-10 text-center text-slate-400 font-medium">Không có chiến dịch nào trong khoảng thời gian này.</td></tr>';
+            return;
+        }
 
         tbody.innerHTML = data.map(c => {
-            totalSpent += c.spent;
-            const imps = Math.round(c.spent / 2); // Sim
-            const clicks = Math.round(imps * 0.02); // Sim
-            totalImpressions += imps; totalClicks += clicks;
-
             return `
                 <tr class="hover:bg-slate-50 transition-colors">
                     <td class="px-8 py-5">
@@ -246,18 +252,46 @@ $(function() {
             `;
         }).join('');
 
-        document.getElementById('stat-impressions').textContent = totalImpressions.toLocaleString();
-        document.getElementById('stat-clicks').textContent = totalClicks.toLocaleString();
         lucide.createIcons();
     }
 
-    async function loadClientMetrics() {
-        const res = await fetch("{{ url_for('admin.get_client_metrics') }}");
+    async function loadClientMetrics(start, end) {
+        let url = "{{ url_for('admin.get_client_metrics') }}";
+        if (start && end) url += `?start_date=${start}&end_date=${end}`;
+        
+        const res = await fetch(url);
         const data = await res.json();
 
+        // ── XỬ LÝ CẢNH BÁO QUÁ NGÂN SÁCH ─────────────────────────────────────
+        const alertContainer = document.getElementById('budget-alert-container');
+        if (data.over_budget_count > 0) {
+            const camNames = data.over_budget_campaigns.map(c => c.name).join(', ');
+            alertContainer.innerHTML = `
+                <div class="bg-rose-50 border border-rose-100 p-4 rounded-3xl flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500 mb-6">
+                    <div class="bg-rose-500 p-2.5 rounded-2xl shadow-lg shadow-rose-100">
+                        <i data-lucide="alert-octagon" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-rose-900 font-black text-sm">CẢNH BÁO: QUÁ NGÂN SÁCH</h4>
+                        <p class="text-rose-600 text-xs font-medium">Chiến dịch [${camNames}] đã tiêu hết tiền và tạm dừng. Vui lòng nạp thêm hoặc điều chỉnh!</p>
+                    </div>
+                    <button onclick="location.href='/deposit'" class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-xs font-black hover:bg-rose-700 transition-all shadow-md shadow-rose-100">XỬ LÝ NGAY</button>
+                </div>
+            `;
+            lucide.createIcons();
+        } else {
+            alertContainer.innerHTML = '';
+        }
+
+        document.getElementById('total-spent-kpi').textContent = fmtCurrency(data.total_spent);
         document.getElementById('stat-conversions').textContent = data.total_conversions;
         document.getElementById('stat-cpl').textContent = fmtCurrency(data.cpl);
-        document.getElementById('current-balance').textContent = fmtCurrency(data.balance);
+        
+        if (document.getElementById('current-balance')) 
+            document.getElementById('current-balance').textContent = fmtCurrency(data.balance);
+        if (document.getElementById('current-balance-card')) 
+            document.getElementById('current-balance-card').textContent = fmtCurrency(data.balance);
+            
         document.getElementById('avg-daily-spent').textContent = fmtCurrency(data.avg_daily_spend);
 
         if (data.days_remaining !== null) {

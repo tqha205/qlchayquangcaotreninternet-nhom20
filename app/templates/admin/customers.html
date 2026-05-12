@@ -426,7 +426,7 @@ function renderCustomers(list) {
                 ${c.created_at ? new Date(c.created_at).toLocaleDateString('vi-VN') : '-'}
             </td>
             <td class="px-6 py-5 text-right">
-                <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="flex items-center justify-end gap-2 transition-opacity">
                     <button onclick="viewCustomerCampaigns(${c.id}, '${c.name.replace(/'/g,"\\'")}')"
                         class="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-primary hover:border-primary/20 transition-all" title="Xem chiến dịch">
                         <i data-lucide="target" class="w-4 h-4"></i>

@@ -54,7 +54,14 @@
                   {% endif %}
                 {% endwith %}
 
-                <form action="{{ url_for('public.contact') }}" method="POST" class="space-y-6">
+                <form id="contactForm" class="space-y-6">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <!-- Honeypot field (Hidden from users) -->
+                    <div style="display:none !important;">
+                        <input type="text" name="website" tabindex="-1" autocomplete="off">
+                    </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div class="space-y-2">
                             <label class="text-xs font-bold text-slate-700 uppercase tracking-widest ml-1">Họ tên *</label>
@@ -86,13 +93,86 @@
                         <textarea name="message" rows="4" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-slate-900 resize-none" placeholder="Hãy mô tả nhu cầu của bạn..."></textarea>
                     </div>
                     
-                    <button type="submit" class="w-full bg-primary text-white py-5 rounded-2xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95 flex items-center justify-center gap-2">
-                        Gửi yêu cầu ngay <i data-lucide="send" class="w-5 h-5"></i>
+                    <button type="submit" id="btnSubmit" class="w-full bg-primary text-white py-5 rounded-2xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span id="btnText">Gửi yêu cầu ngay</span>
+                        <i id="btnIcon" data-lucide="send" class="w-5 h-5"></i>
+                        <svg id="loadingSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
                     </button>
                 </form>
             </div>
         </div>
     </div>
 </section>
+
+<!-- Include SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+document.getElementById('contactForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    const btnSubmit = document.getElementById('btnSubmit');
+    const btnText = document.getElementById('btnText');
+    const btnIcon = document.getElementById('btnIcon');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    
+    // Set loading state
+    btnSubmit.disabled = true;
+    btnText.innerText = 'Đang xử lý...';
+    btnIcon.classList.add('hidden');
+    loadingSpinner.classList.remove('hidden');
+    
+    try {
+        const response = await fetch("{{ url_for('public.contact_submit') }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': form.querySelector('input[name="csrf_token"]').value
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Thành công!',
+                text: result.message,
+                confirmButtonColor: '#4F46E5',
+                customClass: {
+                    popup: 'rounded-[2rem]'
+                }
+            });
+            form.reset();
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi',
+                text: result.message,
+                confirmButtonColor: '#4F46E5'
+            });
+        }
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Lỗi hệ thống',
+            text: 'Không thể kết nối tới máy chủ. Vui lòng thử lại sau.',
+            confirmButtonColor: '#4F46E5'
+        });
+    } finally {
+        // Reset state
+        btnSubmit.disabled = false;
+        btnText.innerText = 'Gửi yêu cầu ngay';
+        btnIcon.classList.remove('hidden');
+        loadingSpinner.classList.add('hidden');
+    }
+});
+</script>
 {% endblock %}
 

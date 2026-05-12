@@ -1,76 +1,72 @@
-from .base import DBModel
-import mysql.connector
-from config import MYSQL_CONFIG
+from app.extensions import db
+from datetime import datetime
 
-class InquiryModel(DBModel):
+class InquiryModel(db.Model):
+    __tablename__ = 'inquiries'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100))
+    phone = db.Column(db.String(20))
+    service = db.Column(db.String(100))
+    message = db.Column(db.Text)
+    status = db.Column(db.String(20), default='NEW') # NEW, READ, REPLIED
+    admin_note = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     @staticmethod
     def create(data):
-        """Lưu yêu cầu tư vấn mới từ trang public."""
-        query = "INSERT INTO inquiries (name, email, phone, service, message) VALUES (%s, %s, %s, %s, %s)"
-        return DBModel.execute(query, (data['name'], data['email'], data['phone'], data['service'], data['message']))
+        new_inquiry = InquiryModel(
+            name=data['name'],
+            email=data['email'],
+            phone=data['phone'],
+            service=data['service'],
+            message=data['message']
+        )
+        db.session.add(new_inquiry)
+        db.session.commit()
+        return new_inquiry.id
 
     @staticmethod
     def get_all():
-        """Lấy toàn bộ danh sách yêu cầu tư vấn, mới nhất trước."""
-        return DBModel.fetch_all(
-            "SELECT * FROM inquiries ORDER BY created_at DESC"
-        )
+        return InquiryModel.query.order_by(InquiryModel.created_at.desc()).all()
 
     @staticmethod
     def get_by_status(status):
-        """Lấy inquiries theo trạng thái: 'new', 'read', 'replied'."""
-        return DBModel.fetch_all(
-            "SELECT * FROM inquiries WHERE status = %s ORDER BY created_at DESC",
-            (status,)
-        )
+        return InquiryModel.query.filter_by(status=status).order_by(InquiryModel.created_at.desc()).all()
 
     @staticmethod
     def mark_read(inquiry_id):
-        """Đánh dấu yêu cầu đã đọc."""
-        return DBModel.execute(
-            "UPDATE inquiries SET status = 'read' WHERE id = %s AND status = 'new'",
-            (inquiry_id,)
-        )
+        inquiry = InquiryModel.query.get(inquiry_id)
+        if inquiry and inquiry.status == 'NEW':
+            inquiry.status = 'READ'
+            db.session.commit()
+            return True
+        return False
 
     @staticmethod
     def approve(inquiry_id):
-        """
-        Phê duyệt yêu cầu tư vấn → chuyển thành Khách hàng chính thức.
-        - Tạo bản ghi mới trong bảng customers
-        - Cập nhật inquiry.status = 'replied'
-        - Trả về customer_id mới tạo, hoặc None nếu thất bại.
-        """
-        inquiry = DBModel.fetch_one("SELECT * FROM inquiries WHERE id = %s", (inquiry_id,))
+        from .customer import CustomerModel
+        inquiry = InquiryModel.query.get(inquiry_id)
         if not inquiry:
             return None
 
-        conn   = None
         try:
-            conn   = mysql.connector.connect(**MYSQL_CONFIG)
-            cursor = conn.cursor()
-
             # 1. Tạo customer mới từ dữ liệu inquiry
-            cursor.execute(
-                "INSERT INTO customers (name, email, phone) VALUES (%s, %s, %s)",
-                (inquiry['name'], inquiry['email'], inquiry['phone'])
+            new_customer = CustomerModel(
+                name=inquiry.name,
+                email=inquiry.email,
+                phone=inquiry.phone
             )
-            customer_id = cursor.lastrowid
-
+            db.session.add(new_customer)
+            
             # 2. Cập nhật trạng thái inquiry
-            cursor.execute(
-                "UPDATE inquiries SET status = 'replied' WHERE id = %s",
-                (inquiry_id,)
-            )
-
-            conn.commit()
-            return customer_id
+            inquiry.status = 'REPLIED'
+            
+            db.session.commit()
+            return new_customer.id
 
         except Exception as e:
-            if conn:
-                conn.rollback()
+            db.session.rollback()
             raise e
-        finally:
-            if conn:
-                conn.close()
 

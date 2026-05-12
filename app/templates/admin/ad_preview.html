@@ -5,8 +5,10 @@
 {% block head %}
 <style>
     .iphone-frame {
-        width: 375px;
-        height: 812px;
+        width: 100%;
+        max-width: 375px;
+        aspect-ratio: 375 / 812;
+        height: auto;
         background: #111;
         border-radius: 60px;
         padding: 12px;
@@ -64,8 +66,13 @@
     .fb-content {
         padding: 4px 12px 12px;
         font-size: 14px;
-        line-height: 1.4;
+        line-height: 1.45;
         color: #050505;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        word-break: break-word;
     }
     .fb-media {
         width: 100%;

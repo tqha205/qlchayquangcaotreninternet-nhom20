@@ -39,3 +39,13 @@ instance/
 # Database
 database/ads_agency.sql
 database/*.db
+
+# Logs and Scratch
+logs/
+scratch/
+check_*.py
+add_column*.py
+apply_migration.py
+fix_db.py
+seed_reports.py
+debug_stats.py
