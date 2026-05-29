@@ -5,10 +5,12 @@ def make_celery(app=None):
     Khởi tạo Celery với Flask app context.
     Redis làm Message Broker (mặc định: redis://localhost:6379/0)
     """
+    import os
+    redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
     celery_app = Celery(
         'ads_manager',
-        broker='redis://localhost:6379/0',
-        backend='redis://localhost:6379/0',
+        broker=redis_url,
+        backend=redis_url,
         include=['app.tasks']
     )
 

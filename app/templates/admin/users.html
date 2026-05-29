@@ -228,9 +228,14 @@
                         </span>
                     </td>
                     <td class="px-8 py-5 text-right">
-                        <button onclick="openEditModal(${u.id})" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
-                            <i data-lucide="edit-3" class="w-5 h-5"></i>
-                        </button>
+                        <div class="flex items-center justify-end gap-2">
+                            <button onclick="openEditModal(${u.id})" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Sửa">
+                                <i data-lucide="edit-3" class="w-5 h-5"></i>
+                            </button>
+                            <button onclick="deleteUser(${u.id})" class="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Xóa">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -239,6 +244,39 @@
     }
 
     function filterUsers() {
+        const q = document.getElementById('user-search').value.toLowerCase();
+        let filtered = allUsers;
+        
+        if (currentTab === 'staff') {
+            filtered = filtered.filter(u => u.role !== 'client');
+        } else {
+            filtered = filtered.filter(u => u.role === 'client');
+        }
+        
+        if (q) {
+            filtered = filtered.filter(u => u.username.toLowerCase().includes(q));
+        }
+        
+        renderUsers(filtered);
+    }
+
+    async function deleteUser(id) {
+        if (!confirm("Bạn có chắc chắn muốn xóa tài khoản này không? Hành động này không thể hoàn tác.")) return;
+        
+        try {
+            const res = await fetch(`/admin/api/users/${id}/delete`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message);
+                loadUsers();
+            } else showToast(data.message, "error");
+        } catch (e) { showToast("Lỗi kết nối server!", "error"); }
+    }
+
+    async function toggleStatus(id) {
         const q = document.getElementById('user-search').value.toLowerCase();
         let filtered = allUsers;
         

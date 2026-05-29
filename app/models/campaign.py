@@ -82,10 +82,10 @@ class CampaignModel(db.Model):
         cam = CampaignModel.get_by_id(campaign_id)
         if not cam: return None
 
-        if cam.status == 'Chờ duyệt' or cam.approval_status == 'pending':
+        if cam.status in ('Chờ duyệt', 'Đã duyệt') or cam.approval_status in ('pending', 'approved'):
             return {
                 'spent_ratio': 0, 'impressions': 0, 'clicks': 0, 'ctr': 0, 'cpc': 0,
-                'label': 'Chờ duyệt', 'label_css': 'bg-slate-100 text-slate-600',
+                'label': cam.status, 'label_css': 'bg-slate-100 text-slate-600' if cam.status == 'Chờ duyệt' else 'bg-sky-50 text-sky-600',
             }
 
         budget = float(cam.budget or 0)

@@ -14,7 +14,9 @@ MYSQL_CONFIG = {
 }
 
 # Secret key cho Flask Session
-SECRET_KEY = os.getenv('SECRET_KEY', 'super_secret_key_rbac_system')
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY is missing from environment variables!")
 
 # Cấu hình Telegram (Điền token và chat_id để kích hoạt cảnh báo)
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')

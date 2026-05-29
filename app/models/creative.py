@@ -34,3 +34,13 @@ class CreativeModel(DBModel):
         """Xóa mẫu quảng cáo."""
         query = "DELETE FROM creatives WHERE id = %s"
         return DBModel.execute(query, (creative_id,))
+
+    @staticmethod
+    def update(creative_id, name, media_type, media_url, content):
+        """Cập nhật nội dung mẫu quảng cáo."""
+        query = """
+            UPDATE creatives 
+            SET name = %s, media_type = %s, media_url = %s, content = %s 
+            WHERE id = %s
+        """
+        return DBModel.execute(query, (name, media_type, media_url, content, creative_id))

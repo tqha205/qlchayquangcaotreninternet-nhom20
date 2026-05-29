@@ -141,7 +141,12 @@ function showRejectModal(id) {
 
 async function approveTx(id) {
     if(!confirm('Phê duyệt giao dịch này và cộng tiền vào tài khoản khách hàng?')) return;
-    const res = await fetch(`/admin/api/transactions/${id}/approve`, { method: 'POST' });
+    const res = await fetch(`/admin/api/transactions/${id}/approve`, { 
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    });
     const data = await res.json();
     if(data.success) {
         showToast('Đã phê duyệt giao dịch!');
@@ -155,7 +160,10 @@ $('#confirm-reject-btn').on('click', async () => {
     
     const res = await fetch(`/admin/api/transactions/${currentTxId}/reject`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
         body: JSON.stringify({ reason })
     });
     const data = await res.json();

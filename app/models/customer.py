@@ -103,6 +103,9 @@ class CustomerModel(db.Model):
         customer = CustomerModel.query.get(customer_id)
         if customer:
             customer.is_deleted = True
+            # Soft-delete tất cả chiến dịch liên quan
+            from .campaign import CampaignModel
+            CampaignModel.query.filter_by(customer_id=customer_id).update({'is_deleted': True})
             db.session.commit()
             return True
         return False

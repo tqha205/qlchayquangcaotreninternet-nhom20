@@ -29,7 +29,18 @@ class InquiryModel(db.Model):
 
     @staticmethod
     def get_all():
-        return InquiryModel.query.order_by(InquiryModel.created_at.desc()).all()
+        rows = InquiryModel.query.order_by(InquiryModel.created_at.desc()).all()
+        return [{
+            'id': r.id,
+            'name': r.name,
+            'email': r.email,
+            'phone': r.phone,
+            'service': r.service,
+            'message': r.message,
+            'status': (r.status or 'new').lower(),
+            'admin_note': r.admin_note,
+            'created_at': r.created_at.isoformat() if r.created_at else None,
+        } for r in rows]
 
     @staticmethod
     def get_by_status(status):

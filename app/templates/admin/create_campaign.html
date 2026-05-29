@@ -301,17 +301,24 @@
         document.getElementById('start_date').value = today.toISOString().split('T')[0];
         document.getElementById('end_date').value   = tomorrow.toISOString().split('T')[0];
         
-        // Load platforms
-        const resP = await fetch('/admin/api/platforms');
-        availablePlatforms = await resP.json();
-        addPlatformRow();
+        try {
+            // Load platforms
+            const resP = await fetch('/admin/api/platforms');
+            if (!resP.ok) throw new Error("Lỗi tải danh sách nền tảng (" + resP.status + ")");
+            availablePlatforms = await resP.json();
+            addPlatformRow();
 
-        // Load customers if needed
-        const custSelect = document.getElementById('customer_id');
-        if (custSelect && custSelect.tagName === 'SELECT') {
-            const resC = await fetch("{{ url_for('admin.get_customers') }}");
-            const dataC = await resC.json();
-            custSelect.innerHTML = dataC.map(c => `<option value="${c.id}">${c.name} (${c.id})</option>`).join('');
+            // Load customers if needed
+            const custSelect = document.getElementById('customer_id');
+            if (custSelect && custSelect.tagName === 'SELECT') {
+                const resC = await fetch("{{ url_for('admin.get_customers') }}");
+                if (!resC.ok) throw new Error("Lỗi tải danh sách khách hàng (" + resC.status + ")");
+                const dataC = await resC.json();
+                custSelect.innerHTML = dataC.map(c => `<option value="${c.id}">${c.name} (${c.id})</option>`).join('');
+            }
+        } catch (err) {
+            console.error("Initial Load Error:", err);
+            showToast("Lỗi tải dữ liệu ban đầu: " + err.message, "error");
         }
         
         lucide.createIcons();
@@ -435,7 +442,12 @@
 
         try {
             const res = await fetch("/admin/api/campaigns/add-v2", {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify(payload)
             });
             const result = await res.json();
             if (result.success) {
@@ -447,6 +459,7 @@
                 lucide.createIcons();
             }
         } catch (e) {
+            console.error("Campaign Submission Error:", e);
             showToast("Lỗi kết nối máy chủ!", "error");
             btn.disabled = false; btn.innerHTML = originalContent;
             lucide.createIcons();

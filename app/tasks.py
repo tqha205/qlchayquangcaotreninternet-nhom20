@@ -14,8 +14,12 @@ Cách chạy worker:
 
 import random
 import logging
+import mysql.connector
+import requests
+import requests.exceptions
 from datetime import datetime
 from celery import shared_task
+from celery import Task
 import sentry_sdk
 from celery_worker import celery
 
@@ -40,16 +44,22 @@ def sync_mock_data(self):
     """
     logger.info("[CELERY TASK] Bắt đầu đồng bộ Mock Data...")
     try:
-        from app.models.base import DBModel
-        campaigns = DBModel.fetch_all(
-            "SELECT id, budget, spent FROM campaigns WHERE status = 'Đang chạy' AND is_deleted = 0"
-        )
+        from app.models.campaign import CampaignModel
+        from app.extensions import db
+        from sqlalchemy import text
+
+        # Query using SQLAlchemy ORM
+        campaigns = CampaignModel.query.filter(
+            CampaignModel.status == 'Đang chạy',
+            CampaignModel.is_deleted == False
+        ).all()
+        
         today_str = datetime.now().strftime('%Y-%m-%d')
 
         for c in campaigns:
-            cam_id = c['id']
-            budget = float(c['budget'] or 0)
-            spent  = float(c['spent'] or 0)
+            cam_id = c.id
+            budget = float(c.budget or 0)
+            spent  = float(c.spent or 0)
             if spent >= budget:
                 continue
 
@@ -61,26 +71,43 @@ def sync_mock_data(self):
             impressions = random.randint(1000, 10000)
             clicks      = int(impressions * random.uniform(0.01, 0.05))
 
-            exist = DBModel.fetch_one(
-                "SELECT id FROM daily_spending WHERE campaign_id = %s AND date = %s",
-                (cam_id, today_str)
-            )
-            if not exist:
-                DBModel.execute(
-                    "INSERT INTO daily_spending (campaign_id, date, amount_spent, clicks, impressions) VALUES (%s, %s, %s, %s, %s)",
-                    (cam_id, today_str, daily_spent, clicks, impressions)
-                )
-                DBModel.execute(
-                    "UPDATE campaigns SET spent = spent + %s WHERE id = %s",
-                    (daily_spent, cam_id)
-                )
-                logger.info(f"  + Chiến dịch #{cam_id}: +{daily_spent}đ")
+            # DB Transaction block for safety
+            try:
+                db.session.begin(nested=True)
+                
+                # Check if exists in daily_spending
+                res = db.session.execute(
+                    text("SELECT id FROM daily_spending WHERE campaign_id = :cid AND date = :date"),
+                    {'cid': cam_id, 'date': today_str}
+                ).fetchone()
+                
+                if not res:
+                    db.session.execute(
+                        text("INSERT INTO daily_spending (campaign_id, date, amount_spent, clicks, impressions) VALUES (:cid, :date, :spent, :clicks, :impr)"),
+                        {'cid': cam_id, 'date': today_str, 'spent': daily_spent, 'clicks': clicks, 'impr': impressions}
+                    )
+                    c.spent = CampaignModel.spent + daily_spent
+                    logger.info(f"  + Chiến dịch #{cam_id}: +{daily_spent}đ")
+                
+                db.session.commit()
+            except mysql.connector.Error as db_err:
+                db.session.rollback()
+                logger.error(f"[DB TRANSACTION ERROR] Failed updating campaign {cam_id}: {db_err}")
+                raise db_err
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"[UNEXPECTED TRANSACTION ERROR] Failed updating campaign {cam_id}: {e}")
+                raise e
 
         logger.info("[CELERY TASK] Đồng bộ Mock Data hoàn tất.")
         return {"status": "ok", "campaigns_processed": len(campaigns)}
 
+    except mysql.connector.Error as exc:
+        celery_logger.error(f"[CELERY DB ERROR] sync_mock_data: {str(exc)}")
+        sentry_sdk.capture_exception(exc)
+        raise self.retry(exc=exc, countdown=30)
     except Exception as exc:
-        celery_logger.error(f"[CELERY ERROR] sync_mock_data: {str(exc)}")
+        celery_logger.error(f"[CELERY UNEXPECTED ERROR] sync_mock_data: {str(exc)}")
         sentry_sdk.capture_exception(exc)
         raise self.retry(exc=exc, countdown=30)
 
@@ -97,40 +124,52 @@ def budget_alert(self):
     """
     logger.info("[CELERY TASK] Bắt đầu quét ngân sách...")
     try:
+        from app.models.campaign import CampaignModel
+        from app.models.customer import CustomerModel
+        from app.models.user import UserModel
         from app.models.notification import NotificationModel
-        from app.models.base import DBModel
+        from app.extensions import db
 
-        sql = """
-            SELECT c.id, c.name, c.budget, c.spent, c.status, c.customer_id, cu.marketer_id
-            FROM campaigns c
-            LEFT JOIN customers cu ON c.customer_id = cu.id
-            WHERE c.status = 'Đang chạy' AND c.is_deleted = 0 AND c.budget > 0
-        """
-        campaigns = DBModel.fetch_all(sql)
+        # Query using SQLAlchemy ORM (Join instead of raw SQL)
+        campaigns = db.session.query(CampaignModel).join(
+            CustomerModel, CampaignModel.customer_id == CustomerModel.id, isouter=True
+        ).filter(
+            CampaignModel.status == 'Đang chạy',
+            CampaignModel.is_deleted == False,
+            CampaignModel.budget > 0
+        ).all()
 
         for c in campaigns:
-            cam_id = c['id']
-            name   = c['name']
-            budget = float(c['budget'] or 0)
-            spent  = float(c['spent'] or 0)
+            cam_id = c.id
+            name   = c.name
+            budget = float(c.budget or 0)
+            spent  = float(c.spent or 0)
             ratio  = spent / budget if budget > 0 else 0
 
             targets = []
-            if c['customer_id']:
-                client_usr = DBModel.fetch_one(
-                    "SELECT id FROM users WHERE customer_id = %s", (c['customer_id'],)
-                )
+            if c.customer_id:
+                client_usr = UserModel.query.filter_by(customer_id=c.customer_id).first()
                 if client_usr:
-                    targets.append(client_usr['id'])
-            if c['marketer_id']:
-                targets.append(c['marketer_id'])
+                    targets.append(client_usr.id)
+            if c.customer and c.customer.marketer_id:
+                targets.append(c.customer.marketer_id)
             targets = list(set(targets))
 
             if ratio >= 1.0:
-                DBModel.execute(
-                    "UPDATE campaigns SET status = 'Kết thúc', approval_status = 'ended' WHERE id = %s",
-                    (cam_id,)
-                )
+                try:
+                    db.session.begin(nested=True)
+                    c.status = 'Kết thúc'
+                    c.approval_status = 'ended'
+                    db.session.commit()
+                except mysql.connector.Error as db_err:
+                    db.session.rollback()
+                    logger.error(f"[DB TRANSACTION ERROR] Failed ending campaign {cam_id}: {db_err}")
+                    raise db_err
+                except Exception as e:
+                    db.session.rollback()
+                    logger.error(f"[UNEXPECTED TRANSACTION ERROR] Failed ending campaign {cam_id}: {e}")
+                    raise e
+                
                 msg = f"Chiến dịch '{name}' đã đạt 100% ngân sách và tự động kết thúc."
                 for uid in targets:
                     NotificationModel.create(uid, NotificationModel.TYPE_BUDGET_EXCEEDED, msg, title="Ngân sách cạn kiệt")
@@ -148,8 +187,12 @@ def budget_alert(self):
         logger.info("[CELERY TASK] Quét ngân sách hoàn tất.")
         return {"status": "ok"}
 
+    except mysql.connector.Error as exc:
+        celery_logger.error(f"[CELERY DB ERROR] budget_alert: {str(exc)}")
+        sentry_sdk.capture_exception(exc)
+        raise self.retry(exc=exc, countdown=30)
     except Exception as exc:
-        celery_logger.error(f"[CELERY ERROR] budget_alert: {str(exc)}")
+        celery_logger.error(f"[CELERY UNEXPECTED ERROR] budget_alert: {str(exc)}")
         sentry_sdk.capture_exception(exc)
         raise self.retry(exc=exc, countdown=30)
 
@@ -163,7 +206,6 @@ def send_telegram(self, message: str, chat_id: str = None):
     Task Celery: Gửi tin nhắn Telegram bất đồng bộ.
     Tách ra khỏi request cycle để không block giao diện người dùng.
     """
-    import requests
     from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
     token   = TELEGRAM_BOT_TOKEN
@@ -179,8 +221,12 @@ def send_telegram(self, message: str, chat_id: str = None):
         resp.raise_for_status()
         logger.info(f"[CELERY] Đã gửi Telegram: {message[:50]}...")
         return {"status": "sent"}
+    except requests.exceptions.RequestException as exc:
+        celery_logger.error(f"[CELERY TELEGRAM REQUEST ERROR] send_telegram: {str(exc)}")
+        sentry_sdk.capture_exception(exc)
+        raise self.retry(exc=exc, countdown=60)
     except Exception as exc:
-        celery_logger.error(f"[CELERY ERROR] send_telegram: {str(exc)}")
+        celery_logger.error(f"[CELERY TELEGRAM UNEXPECTED ERROR] send_telegram: {str(exc)}")
         sentry_sdk.capture_exception(exc)
         raise self.retry(exc=exc, countdown=60)
 
@@ -199,13 +245,16 @@ def _emit_socket_notification(user_ids: list, event: str, data: dict):
             socketio.emit(event, {**data, 'user_id': uid}, room=f"user_{uid}")
     except Exception as e:
         logger.debug(f"[SocketIO emit skipped]: {e}")
+
+
 @shared_task
 def aggregate_daily_spending():
     """
     Chạy định kỳ (00:01) để tổng hợp chi tiêu ngày hôm qua từ daily_spending
     vào bảng daily_reports để tăng tốc độ Dashboard.
     """
-    from app.models import DBModel
+    from app.extensions import db
+    from sqlalchemy import text
     
     # 1. Lấy dữ liệu ngày hôm qua
     sql = """
@@ -221,7 +270,12 @@ def aggregate_daily_spending():
             conversions = VALUES(conversions)
     """
     try:
-        DBModel.execute(sql)
+        db.session.execute(text(sql))
+        db.session.commit()
         print("✅ Đã tổng hợp dữ liệu chi tiêu ngày hôm qua.")
+    except mysql.connector.Error as e:
+        db.session.rollback()
+        print(f"❌ Lỗi DB tổng hợp dữ liệu: {e}")
     except Exception as e:
-        print(f"❌ Lỗi tổng hợp dữ liệu: {e}")
+        db.session.rollback()
+        print(f"❌ Lỗi không xác định tổng hợp dữ liệu: {e}")

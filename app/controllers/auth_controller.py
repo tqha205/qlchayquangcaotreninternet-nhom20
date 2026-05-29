@@ -9,7 +9,7 @@ auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/login', methods=['POST'])
-@limiter.limit("10 per minute")
+@limiter.limit("5 per minute")
 def login():
     try:
         data = LoginSchema(**(request.json or {}))
@@ -39,6 +39,7 @@ def login():
 from sqlalchemy.exc import IntegrityError
 
 @auth_bp.route('/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def register():
     try:
         data = RegisterSchema(**(request.json or {}))

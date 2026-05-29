@@ -27,6 +27,57 @@
 
 {% block content %}
 <div class="space-y-8 pb-12">
+
+    <!-- Daily Summary Notification Banner -->
+    <div id="daily-summary-banner" class="hidden">
+        <div class="relative bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 rounded-[2.5rem] p-6 text-white shadow-2xl shadow-indigo-200 overflow-hidden">
+            <!-- Background decoration -->
+            <div class="absolute -right-8 -top-8 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+            <div class="absolute right-20 bottom-0 w-24 h-24 bg-purple-400/20 rounded-full blur-xl"></div>
+
+            <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <!-- Left: title -->
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <i data-lucide="bar-chart-2" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-base">📊 Báo cáo hôm nay — <span id="banner-date"></span></h4>
+                        <p class="text-indigo-200 text-xs mt-0.5">Tổng hợp từ tất cả chiến dịch đang chạy của bạn</p>
+                    </div>
+                </div>
+
+                <!-- Center: stats -->
+                <div class="flex flex-wrap gap-4 md:gap-6">
+                    <div class="flex flex-col items-center bg-white/15 rounded-2xl px-4 py-2.5 min-w-[80px]">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-indigo-200">Clicks</span>
+                        <span class="text-xl font-black" id="banner-clicks">0</span>
+                        <span id="banner-clicks-delta" class="text-[10px] font-bold mt-0.5"></span>
+                    </div>
+                    <div class="flex flex-col items-center bg-white/15 rounded-2xl px-4 py-2.5 min-w-[80px]">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-indigo-200">Hiển thị</span>
+                        <span class="text-xl font-black" id="banner-impressions">0</span>
+                        <span id="banner-impressions-delta" class="text-[10px] font-bold mt-0.5"></span>
+                    </div>
+                    <div class="flex flex-col items-center bg-white/15 rounded-2xl px-4 py-2.5 min-w-[100px]">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-indigo-200">Chi tiêu</span>
+                        <span class="text-lg font-black" id="banner-spent">0đ</span>
+                        <span id="banner-spent-delta" class="text-[10px] font-bold mt-0.5"></span>
+                    </div>
+                    <div class="flex flex-col items-center bg-white/15 rounded-2xl px-4 py-2.5 min-w-[80px]">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-indigo-200">Conv.</span>
+                        <span class="text-xl font-black" id="banner-conversions">0</span>
+                        <span class="text-[10px] font-bold text-indigo-200 mt-0.5">hôm nay</span>
+                    </div>
+                </div>
+
+                <!-- Right: close button -->
+                <button onclick="dismissDailySummary()" class="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all flex-shrink-0" title="Đóng">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
     <!-- Header with Date Picker & Export -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div id="reportrange" class="bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm cursor-pointer flex items-center gap-2 hover:border-indigo-300 transition-colors">
@@ -363,7 +414,75 @@ $(function() {
     };
 
     initMiniChart();
+    loadDailySummary();
 });
+
+// ── DAILY SUMMARY BANNER ────────────────────────────────────────────────────
+async function loadDailySummary() {
+    // Hiển thị mỗi phiên làm việc (không popup lại nếu đã bấm X trong cùng tab)
+    if (sessionStorage.getItem('dailySummaryDismissed')) return;
+
+    try {
+        const res = await fetch('/admin/api/client/daily-summary');
+        const data = await res.json();
+        if (!data.success) return;
+
+        const today   = data.today;
+        const delta   = data.delta;
+        const fmtNum  = n => new Intl.NumberFormat('vi-VN').format(n);
+        const fmtCur  = v => new Intl.NumberFormat('vi-VN').format(Math.round(v)) + 'đ';
+
+        // Fill values
+        document.getElementById('banner-clicks').textContent      = fmtNum(today.clicks);
+        document.getElementById('banner-impressions').textContent = fmtNum(today.impressions);
+        document.getElementById('banner-spent').textContent       = fmtCur(today.spent);
+        document.getElementById('banner-conversions').textContent = fmtNum(today.conversions);
+
+        // Date
+        const now = new Date();
+        document.getElementById('banner-date').textContent = now.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        // Delta helpers
+        function renderDelta(elId, value, isCurrency = false) {
+            const el = document.getElementById(elId);
+            if (value === 0) {
+                el.textContent = '= như hôm qua';
+                el.className = 'text-[10px] font-bold text-indigo-200 mt-0.5';
+            } else if (value > 0) {
+                el.textContent = `▲ +${isCurrency ? fmtCur(value) : fmtNum(value)}`;
+                el.className = 'text-[10px] font-bold text-emerald-300 mt-0.5';
+            } else {
+                el.textContent = `▼ ${isCurrency ? fmtCur(value) : fmtNum(value)}`;
+                el.className = 'text-[10px] font-bold text-rose-300 mt-0.5';
+            }
+        }
+
+        renderDelta('banner-clicks-delta',      delta.clicks);
+        renderDelta('banner-impressions-delta', delta.impressions);
+        renderDelta('banner-spent-delta',       delta.spent, true);
+
+        // Show banner with animation
+        const banner = document.getElementById('daily-summary-banner');
+        banner.classList.remove('hidden');
+        banner.style.opacity = '0';
+        banner.style.transform = 'translateY(-12px)';
+        banner.style.transition = 'all 0.5s cubic-bezier(0.23, 1, 0.32, 1)';
+        requestAnimationFrame(() => {
+            banner.style.opacity = '1';
+            banner.style.transform = 'translateY(0)';
+        });
+        lucide.createIcons();
+
+    } catch (e) { console.warn('Không tải được daily summary:', e); }
+}
+
+function dismissDailySummary() {
+    const banner = document.getElementById('daily-summary-banner');
+    banner.style.opacity = '0';
+    banner.style.transform = 'translateY(-12px)';
+    setTimeout(() => banner.classList.add('hidden'), 400);
+    sessionStorage.setItem('dailySummaryDismissed', '1');
+}
 
 function initMiniChart() {
     new ApexCharts(document.querySelector("#mini-chart"), {

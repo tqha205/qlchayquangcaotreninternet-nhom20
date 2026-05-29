@@ -1,5 +1,6 @@
 import random
 import logging
+import mysql.connector
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -58,8 +59,10 @@ def job_auto_sync_mock_data():
                 logger.info(f"  + Chiến dịch #{cam_id}: +{daily_spent}đ")
                 
         logger.info("[JOB] Đồng bộ Mock Data hoàn tất.")
+    except mysql.connector.Error as e:
+        logger.error(f"[JOB DB ERROR] job_auto_sync_mock_data: {str(e)}")
     except Exception as e:
-        logger.error(f"[JOB ERROR] job_auto_sync_mock_data: {str(e)}")
+        logger.error(f"[JOB UNEXPECTED ERROR] job_auto_sync_mock_data: {str(e)}")
 
 def job_budget_alert():
     """
@@ -121,8 +124,10 @@ def job_budget_alert():
                 logger.info(f"  > Cảnh báo ngân sách chiến dịch #{cam_id}")
                 
         logger.info("[JOB] Quét ngân sách hoàn tất.")
+    except mysql.connector.Error as e:
+        logger.error(f"[JOB DB ERROR] job_budget_alert: {str(e)}")
     except Exception as e:
-        logger.error(f"[JOB ERROR] job_budget_alert: {str(e)}")
+        logger.error(f"[JOB UNEXPECTED ERROR] job_budget_alert: {str(e)}")
 
 def _trigger_celery_sync():
     """Trigger Celery task nếu worker đang chạy, fallback sang hàm trực tiếp."""

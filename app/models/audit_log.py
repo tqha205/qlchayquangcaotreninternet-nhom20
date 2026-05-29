@@ -7,11 +7,24 @@ class AuditLogModel(DBModel):
     @staticmethod
     def log(user_id, action, target_table=None, target_id=None, old_value=None, new_value=None):
         """Ghi nhận một hoạt động vào nhật ký."""
-        # Chuyển dict sang JSON string nếu cần
-        if isinstance(old_value, (dict, list)):
-            old_value = json.dumps(old_value, ensure_ascii=False)
-        if isinstance(new_value, (dict, list)):
-            new_value = json.dumps(new_value, ensure_ascii=False)
+        # Chuyển đổi giá trị thành JSON hợp lệ (DB yêu cầu json_valid)
+        def _to_json(val):
+            if val is None:
+                return None
+            if isinstance(val, (dict, list)):
+                return json.dumps(val, ensure_ascii=False, default=str)
+            if isinstance(val, str):
+                # Wrap string thành JSON string hợp lệ
+                return json.dumps(val, ensure_ascii=False)
+            # ORM object → chuyển sang dict các cột
+            if hasattr(val, '__table__'):
+                d = {c.name: getattr(val, c.name, None) for c in val.__table__.columns}
+                return json.dumps(d, ensure_ascii=False, default=str)
+            # Fallback: wrap thành JSON
+            return json.dumps(str(val), ensure_ascii=False)
+        
+        old_value = _to_json(old_value)
+        new_value = _to_json(new_value)
 
         sql = """
             INSERT INTO audit_logs (user_id, action, target_table, target_id, old_value, new_value)
