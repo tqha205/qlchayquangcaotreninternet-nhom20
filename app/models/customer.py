@@ -1,6 +1,31 @@
+from app.extensions import db
+from datetime import datetime
 from .base import DBModel
 
-class CustomerModel(DBModel):
+class CustomerModel(db.Model):
+    __tablename__ = 'customers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100))
+    phone = db.Column(db.String(20))
+    company = db.Column(db.String(255))
+    status = db.Column(db.String(50), default='Tiềm năng')
+    balance = db.Column(db.Numeric(18, 2), default=0.00)
+    marketer_id = db.Column(db.Integer, db.ForeignKey('users.id', use_alter=True, name='fk_customer_marketer'), nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    marketer = db.relationship('UserModel', backref=db.backref('managed_customers', lazy=True), foreign_keys=[marketer_id])
+    campaigns = db.relationship('CampaignModel', backref='customer', lazy=True)
+
+    # Dictionary compatibility layer (both bracket and .get() access)
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
 
     @staticmethod
     def get_all(marketer_id=None):
@@ -33,35 +58,60 @@ class CustomerModel(DBModel):
     @staticmethod
     def get_by_id(customer_id):
         """Lấy thông tin một khách hàng bao gồm số dư."""
-        return DBModel.fetch_one(
-            "SELECT * FROM customers WHERE id = %s AND is_deleted = 0",
-            (customer_id,)
-        )
+        return CustomerModel.query.filter_by(id=customer_id, is_deleted=False).first()
 
     @staticmethod
     def deposit(customer_id, amount):
-        """Cộng tiền vào tài khoản khách hàng."""
-        query = "UPDATE customers SET balance = balance + %s WHERE id = %s"
-        return DBModel.execute(query, (amount, customer_id))
+        """Cộng tiền vào tài khoản khách hàng sử dụng Pessimistic Locking (SELECT ... FOR UPDATE)."""
+        customer = CustomerModel.query.with_for_update().filter_by(id=customer_id, is_deleted=False).first()
+        if customer:
+            customer.balance = float(customer.balance or 0) + float(amount)
+            db.session.commit()
+            return True
+        return False
+
+    @staticmethod
+    def deduct(customer_id, amount):
+        """Trừ tiền tài khoản khách hàng sử dụng Pessimistic Locking (SELECT ... FOR UPDATE)."""
+        customer = CustomerModel.query.with_for_update().filter_by(id=customer_id, is_deleted=False).first()
+        if customer:
+            current_balance = float(customer.balance or 0)
+            deduct_amount = float(amount)
+            if current_balance >= deduct_amount:
+                customer.balance = current_balance - deduct_amount
+                db.session.commit()
+                return True
+        return False
 
     @staticmethod
     def create(name, email=None, phone=None, company=None, status='Tiềm năng', marketer_id=None):
         """Thêm khách hàng mới. Trả về ID vừa tạo."""
-        query = "INSERT INTO customers (name, email, phone, company, status, marketer_id) VALUES (%s, %s, %s, %s, %s, %s)"
-        return DBModel.execute(query, (name, email, phone, company, status, marketer_id))
+        new_customer = CustomerModel(
+            name=name, email=email, phone=phone, company=company, 
+            status=status, marketer_id=marketer_id
+        )
+        db.session.add(new_customer)
+        db.session.commit()
+        return new_customer.id
 
     @staticmethod
     def update(customer_id, name, email=None, phone=None, company=None, status=None, marketer_id=None):
         """Cập nhật thông tin khách hàng."""
-        query = """
-            UPDATE customers
-            SET name=%s, email=%s, phone=%s, company=%s, status=%s, marketer_id=%s
-            WHERE id=%s AND is_deleted = 0
-        """
-        return DBModel.execute(query, (name, email, phone, company, status, marketer_id, customer_id))
+        customer = CustomerModel.query.get(customer_id)
+        if customer:
+            customer.name = name
+            customer.email = email
+            customer.phone = phone
+            customer.company = company
+            if status: customer.status = status
+            customer.marketer_id = marketer_id
+            db.session.commit()
+            return True
+        return False
 
     @staticmethod
     def delete(customer_id):
+        """Xóa khách hàng (Soft Delete)."""
         customer = CustomerModel.query.get(customer_id)
         if customer:
             customer.is_deleted = True

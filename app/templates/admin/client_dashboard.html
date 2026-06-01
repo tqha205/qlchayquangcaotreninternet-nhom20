@@ -100,15 +100,15 @@
         <div class="lg:col-span-2 banner-gradient rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center gap-8 relative overflow-hidden shadow-2xl shadow-indigo-100">
             <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
             <div class="flex-1 space-y-4 relative z-10">
-                <span class="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest">Dự báo ngân sách</span>
+                <span class="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest">Hạn mức thanh toán</span>
                 <h2 class="text-3xl font-black leading-tight" id="burn-rate-title">Đang tính toán...</h2>
-                <p class="text-indigo-100 text-sm leading-relaxed max-w-md" id="burn-rate-desc">Dựa trên mức tiêu trung bình 7 ngày qua, tài khoản của bạn đang hoạt động ổn định.</p>
+                <p class="text-indigo-100 text-sm leading-relaxed max-w-md" id="burn-rate-desc">Dựa trên các chiến dịch được phê duyệt, vui lòng thanh toán hóa đơn để chạy quảng cáo.</p>
                 <div class="flex gap-4 pt-2">
-                    <button class="bg-white text-indigo-600 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-indigo-50 transition-all" onclick="location.href='{{ url_for('admin.deposit_page') }}'">Nạp thêm tiền</button>
+                    <button class="bg-white text-indigo-600 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-indigo-50 transition-all" onclick="openDepositModal()">Thanh toán Hóa đơn</button>
                 </div>
             </div>
             <div class="w-40 h-40 bg-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md border border-white/20 relative z-10">
-                <p class="text-[10px] font-black uppercase opacity-60 mb-1">Số dư hiện tại</p>
+                <p class="text-[10px] font-black uppercase opacity-60 mb-1">Hóa đơn chưa thanh toán</p>
                 <p class="text-xl font-black" id="current-balance">0đ</p>
             </div>
         </div>
@@ -164,11 +164,11 @@
             </div>
         </div>
         <div class="glass-card p-7 rounded-[2rem] card-hover bg-indigo-600 !border-none">
-            <p class="text-[10px] font-black text-indigo-200 uppercase tracking-[0.15em] mb-3">Số dư khả dụng</p>
+            <p class="text-[10px] font-black text-indigo-200 uppercase tracking-[0.15em] mb-3">Hóa đơn chưa thanh toán</p>
             <div class="flex items-end justify-between text-white">
                 <h4 class="text-2xl font-black" id="current-balance-card">0đ</h4>
                 <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <i data-lucide="wallet" class="w-5 h-5"></i>
+                    <i data-lucide="credit-card" class="w-5 h-5"></i>
                 </div>
             </div>
         </div>
@@ -326,7 +326,7 @@ $(function() {
                         <h4 class="text-rose-900 font-black text-sm">CẢNH BÁO: QUÁ NGÂN SÁCH</h4>
                         <p class="text-rose-600 text-xs font-medium">Chiến dịch [${camNames}] đã tiêu hết tiền và tạm dừng. Vui lòng nạp thêm hoặc điều chỉnh!</p>
                     </div>
-                    <button onclick="location.href='/deposit'" class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-xs font-black hover:bg-rose-700 transition-all shadow-md shadow-rose-100">XỬ LÝ NGAY</button>
+                    <button onclick="openDepositModal()" class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-xs font-black hover:bg-rose-700 transition-all shadow-md shadow-rose-100">XỬ LÝ NGAY</button>
                 </div>
             `;
             lucide.createIcons();

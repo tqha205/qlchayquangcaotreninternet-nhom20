@@ -12,6 +12,11 @@
     .timeline-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #e2e8f0; margin-left: 7px; }
     @keyframes bounce-subtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
     .animate-bounce-subtle { animation: bounce-subtle 1s ease-in-out infinite; }
+    .rotate-180 { transform: rotate(180deg); }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 </style>
 {% endblock %}
 
@@ -21,16 +26,16 @@
     <div class="bg-amber-50 border-2 border-amber-200 p-6 rounded-[2.5rem] flex items-center justify-between animate-pulse">
         <div class="flex items-center gap-4">
             <div class="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
-                <i data-lucide="wallet" class="w-7 h-7"></i>
+                <i data-lucide="credit-card" class="w-7 h-7"></i>
             </div>
             <div>
-                <h4 class="text-amber-900 font-black text-lg">Số dư tài khoản không đủ!</h4>
-                <p class="text-amber-600 text-sm font-medium">Số dư hiện tại của bạn là 0đ. Vui lòng nạp thêm tiền để có thể bắt đầu hoặc duy trì chạy quảng cáo.</p>
+                <h4 class="text-amber-900 font-black text-lg">Bạn có hóa đơn chưa thanh toán!</h4>
+                <p class="text-amber-600 text-sm font-medium">Vui lòng thanh toán hóa đơn để có thể bắt đầu hoặc duy trì chạy quảng cáo.</p>
             </div>
         </div>
-        <a href="{{ url_for('admin.deposit_page') }}" class="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 rounded-2xl font-black text-sm shadow-xl shadow-amber-200 transition-all flex items-center gap-2">
-            <i data-lucide="plus-circle" class="w-4 h-4"></i> Nạp tiền ngay
-        </a>
+        <button onclick="openDepositModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 rounded-2xl font-black text-sm shadow-xl shadow-amber-200 transition-all flex items-center gap-2">
+            <i data-lucide="credit-card" class="w-4 h-4"></i> Thanh toán Hóa đơn
+        </button>
     </div>
     {% endif %}
     {% if (campaign.budget - campaign.spent) < 0 or campaign.status == 'Hết ngân sách' %}
@@ -40,13 +45,13 @@
                 <i data-lucide="alert-octagon" class="w-7 h-7"></i>
             </div>
             <div>
-                <h4 class="text-rose-900 font-black text-lg">Chiến dịch đã tạm dừng!</h4>
-                <p class="text-rose-600 text-sm font-medium">Ngân sách đã hết. Vui lòng nạp thêm tiền để tiếp tục phân phối quảng cáo.</p>
+                <h4 class="text-rose-900 font-black text-lg">Chiến dịch đã hết ngân sách!</h4>
+                <p class="text-rose-600 text-sm font-medium">Vui lòng thanh toán hóa đơn để tiếp tục phân phối quảng cáo.</p>
             </div>
         </div>
-        <a href="{{ url_for('admin.deposit_page') }}" class="bg-rose-600 hover:bg-rose-700 text-white px-8 py-3 rounded-2xl font-black text-sm shadow-xl shadow-rose-200 transition-all flex items-center gap-2">
-            <i data-lucide="credit-card" class="w-4 h-4"></i> Nạp ngân sách ngay
-        </a>
+        <button onclick="openDepositModal()" class="bg-rose-600 hover:bg-rose-700 text-white px-8 py-3 rounded-2xl font-black text-sm shadow-xl shadow-rose-200 transition-all flex items-center gap-2">
+            <i data-lucide="credit-card" class="w-4 h-4"></i> Thanh toán Hóa đơn
+        </button>
     </div>
     {% endif %}
 
@@ -225,28 +230,42 @@
 
         <!-- COLUMN 3: ACTIVITY LOG (RIGHT) -->
         <div class="xl:col-span-2 space-y-6">
-            <div class="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm h-full">
-                <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <i data-lucide="history" class="w-4 h-4 text-indigo-500"></i>
-                    Nhật ký
-                </h3>
+            <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm h-full">
+                <button onclick="toggleLogDropdown()" class="w-full p-6 flex items-center justify-between cursor-pointer hover:bg-slate-50/50 rounded-[2rem] transition-colors">
+                    <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <i data-lucide="history" class="w-4 h-4 text-indigo-500"></i>
+                        Nhật ký
+                        {% if logs %}
+                        <span class="bg-indigo-100 text-indigo-600 text-[10px] font-black px-2 py-0.5 rounded-full">{{ logs|length }}</span>
+                        {% endif %}
+                    </h3>
+                    <i data-lucide="chevron-down" id="log-chevron" class="w-4 h-4 text-slate-400 transition-transform duration-300 transform rotate-180"></i>
+                </button>
                 
-                <div class="space-y-6 relative">
-                    {% if logs %}
-                        {% for log in logs %}
-                        <div class="timeline-item relative pl-8">
-                            <div class="absolute left-0 top-0 w-3.5 h-3.5 bg-indigo-500 rounded-full border-2 border-white z-10 shadow-sm"></div>
-                            <p class="text-xs font-black text-slate-900 leading-tight">Cập nhật Chi tiêu</p>
-                            <p class="text-[11px] text-slate-400 font-medium">{{ log.date }}</p>
-                            <div class="mt-2 p-3 bg-slate-50 rounded-2xl text-[13px] text-slate-600 font-bold border border-slate-100/50">
-                                Đã chi <span class="text-indigo-600">{{ log.amount_spent | format_currency }}đ</span> <br>
-                                <span class="text-slate-400 text-[11px]">({{ log.clicks }} clicks)</span>
+                <div id="log-dropdown-content" class="px-6 pb-6">
+                    <div class="space-y-6 relative max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
+                        {% if logs %}
+                            {% for log in logs %}
+                            <div class="timeline-item relative pl-8">
+                                <div class="absolute left-0 top-0 w-3.5 h-3.5 bg-indigo-500 rounded-full border-2 border-white z-10 shadow-sm"></div>
+                                <p class="text-xs font-black text-slate-900 leading-tight">{{ log.title | default('Cập nhật Chi tiêu') }}</p>
+                                <p class="text-[11px] text-slate-400 font-medium">{{ log.date }}</p>
+                                {% if log.title == 'Cập nhật Chi tiêu' %}
+                                <div class="mt-2 p-3 bg-slate-50 rounded-2xl text-[13px] text-slate-600 font-bold border border-slate-100/50">
+                                    Đã chi <span class="text-indigo-600">{{ log.amount_spent | format_currency }}đ</span> <br>
+                                    <span class="text-slate-400 text-[11px]">({{ log.clicks }} clicks)</span>
+                                </div>
+                                {% else %}
+                                <div class="mt-2 p-3 bg-slate-50 rounded-2xl text-[13px] text-slate-600 font-bold border border-slate-100/50">
+                                    Thao tác bởi Hệ thống / Admin
+                                </div>
+                                {% endif %}
                             </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-sm text-slate-400 text-center py-10 italic">Chưa có hoạt động nào.</p>
-                    {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-sm text-slate-400 text-center py-10 italic">Chưa có hoạt động nào.</p>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -339,6 +358,13 @@ $(function() {
     });
 });
 
+function toggleLogDropdown() {
+    const content = document.getElementById('log-dropdown-content');
+    const chevron = document.getElementById('log-chevron');
+    content.classList.toggle('hidden');
+    chevron.classList.toggle('rotate-180');
+}
+
 function openAddCreativeModal(isEdit = false) {
     $('#creative-id-input').val('');
     $('#add-creative-form')[0].reset();
@@ -424,22 +450,46 @@ async function initPerformanceChart() {
         
         if (!data.success) return;
 
+        let dates = data.chart.dates || [];
+        let by_platform = data.chart.by_platform || {};
+
+        if (dates.length === 0) {
+            const today = moment().format('YYYY-MM-DD');
+            dates = [
+                moment().subtract(4, 'days').format('YYYY-MM-DD'),
+                moment().subtract(3, 'days').format('YYYY-MM-DD'),
+                moment().subtract(2, 'days').format('YYYY-MM-DD'),
+                moment().subtract(1, 'days').format('YYYY-MM-DD'),
+                today
+            ];
+            by_platform = { 'Tổng': {} };
+        } else if (dates.length === 1) {
+            const d = dates[0];
+            dates = [
+                moment(d).subtract(4, 'days').format('YYYY-MM-DD'),
+                moment(d).subtract(3, 'days').format('YYYY-MM-DD'),
+                moment(d).subtract(2, 'days').format('YYYY-MM-DD'),
+                moment(d).subtract(1, 'days').format('YYYY-MM-DD'),
+                d
+            ];
+        }
+
         const options = {
             series: [{
                 name: 'Chi phí (Cost)',
-                data: data.chart.dates.map(date => {
+                data: dates.map(date => {
                     let total = 0;
-                    for (let p in data.chart.by_platform) {
-                        total += data.chart.by_platform[p][date]?.spent || 0;
+                    for (let p in by_platform) {
+                        total += by_platform[p][date]?.spent || 0;
                     }
                     return total;
                 })
             }, {
                 name: 'Lượt Click',
-                data: data.chart.dates.map(date => {
+                data: dates.map(date => {
                     let total = 0;
-                    for (let p in data.chart.by_platform) {
-                        total += data.chart.by_platform[p][date]?.clicks || 0;
+                    for (let p in by_platform) {
+                        total += by_platform[p][date]?.clicks || 0;
                     }
                     return total;
                 })
@@ -450,7 +500,7 @@ async function initPerformanceChart() {
             colors: ['#4f46e5', '#10b981'],
             fill: { type: 'gradient', gradient: { opacityFrom: 0.6, opacityTo: 0 } },
             xaxis: { 
-                categories: data.chart.dates.map(d => moment(d).format('DD/MM')),
+                categories: dates.map(d => moment(d).format('DD/MM')),
                 labels: { style: { fontSize: '10px', fontWeight: 600 } }
             },
             legend: { position: 'top', horizontalAlign: 'right', fontWeight: 900, fontSize: '10px', markers: { radius: 12 } },

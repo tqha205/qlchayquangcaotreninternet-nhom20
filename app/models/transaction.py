@@ -18,6 +18,12 @@ class TransactionModel(db.Model):
     # Relationship
     customer = db.relationship('CustomerModel', backref=db.backref('transactions', lazy=True))
 
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
     @staticmethod
     def get_by_customer(customer_id):
         return TransactionModel.query.filter_by(customer_id=customer_id).order_by(TransactionModel.created_at.desc()).all()
@@ -59,7 +65,5 @@ class TransactionModel(db.Model):
 
     @staticmethod
     def get_invoices(customer_id):
-        # Giả sử bảng invoices chưa được chuyển sang SQLAlchemy, 
-        # nhưng ở đây chúng ta nên chuẩn hóa nó nếu cần.
-        # Tạm thời để trống hoặc giả lập.
-        return []
+        from .invoice import InvoiceModel
+        return InvoiceModel.query.filter_by(customer_id=customer_id).order_by(InvoiceModel.created_at.desc()).all()

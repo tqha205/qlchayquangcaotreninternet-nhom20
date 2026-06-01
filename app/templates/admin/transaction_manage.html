@@ -1,67 +1,195 @@
 {% extends "layouts/admin_base.html" %}
 
-{% block title %}Quản lý Nạp tiền - ADS Manager Pro{% endblock %}
-{% block page_title %}Phê duyệt Giao dịch{% endblock %}
+{% block title %}
+    {% if session.get('role') == 'client' %}Lịch sử Giao dịch - ADS Manager Pro{% else %}Quản lý Giao dịch - ADS Manager Pro{% endif %}
+{% endblock %}
+
+{% block page_title %}
+    {% if session.get('role') == 'client' %}Lịch sử Giao dịch{% else %}Quản lý Giao dịch & Kế toán{% endif %}
+{% endblock %}
+
+{% block page_subtitle %}
+    {% if session.get('role') == 'client' %}Xem chi tiết lịch sử nạp tiền và phí chi tiêu tự động.{% else %}Phê duyệt nạp tiền thủ công và kiểm tra chi tiêu quảng cáo hệ thống.{% endif %}
+{% endblock %}
 
 {% block head %}
 <style>
-    .proof-thumb { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: zoom-in; }
-    .proof-thumb:hover { transform: scale(1.05); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-    #image-viewer { backdrop-filter: blur(8px); }
+    .glass-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(241, 245, 249, 0.8);
+    }
+    .proof-thumb { 
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        cursor: zoom-in; 
+    }
+    .proof-thumb:hover { 
+        transform: scale(1.1); 
+        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1); 
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Filters & Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+<div class="space-y-8">
+    <!-- Top Summary / Status cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 glass-card">
             <div class="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
                 <i data-lucide="clock" class="w-6 h-6"></i>
             </div>
             <div>
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Đang chờ duyệt</p>
-                <h4 class="text-xl font-black text-slate-900" id="pending-count">0</h4>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Chờ phê duyệt</p>
+                <h4 class="text-2xl font-black text-slate-900 leading-none" id="pending-count">0</h4>
             </div>
         </div>
-        <!-- Thêm các thẻ stats khác nếu cần -->
+
+        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 glass-card">
+            <div class="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500">
+                <i data-lucide="check-circle" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Đã hoàn thành</p>
+                <h4 class="text-2xl font-black text-slate-900 leading-none" id="completed-count">0</h4>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 glass-card">
+            <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500">
+                <i data-lucide="trending-up" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Tổng giá trị nạp</p>
+                <h4 class="text-2xl font-black text-indigo-600 leading-none" id="total-topup-sum">0đ</h4>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 glass-card">
+            <div class="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500">
+                <i data-lucide="trending-down" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Tổng chi tiêu trừ</p>
+                <h4 class="text-2xl font-black text-rose-500 leading-none" id="total-deduction-sum">0đ</h4>
+            </div>
+        </div>
     </div>
 
-    <!-- Main Table -->
-    <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+    <!-- Filters Section -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm glass-card">
+        <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+            <!-- Filter Status -->
+            <div class="space-y-1 w-full sm:w-48">
+                <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 block ml-1">Lọc trạng thái</span>
+                <div class="relative">
+                    <select id="filter-status" onchange="loadTransactions()" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-xs text-slate-600 appearance-none">
+                        <option value="">-- Tất cả Trạng thái --</option>
+                        <option value="pending">Chờ phê duyệt (Pending)</option>
+                        <option value="completed">Thành công (Completed)</option>
+                        <option value="rejected">Bị từ chối (Rejected)</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Type -->
+            <div class="space-y-1 w-full sm:w-48">
+                <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 block ml-1">Lọc loại giao dịch</span>
+                <div class="relative">
+                    <select id="filter-type" onchange="loadTransactions()" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-xs text-slate-600 appearance-none">
+                        <option value="">-- Tất cả Loại GD --</option>
+                        <option value="topup">Nạp tiền (Topup)</option>
+                        <option value="deduction">Khấu trừ tự động (Deduction)</option>
+                        <option value="refund">Hoàn tiền (Refund)</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="loadTransactions()" class="p-3 bg-slate-50 hover:bg-slate-100 border-2 border-slate-100 text-slate-600 rounded-xl transition-all self-end flex items-center gap-1.5 font-bold text-xs">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Làm mới
+        </button>
+    </div>
+
+    <!-- Data Table Card -->
+    <div class="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden glass-card">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-slate-50/50">
-                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Khách hàng</th>
-                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Số tiền</th>
-                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Minh chứng</th>
-                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Phương thức</th>
-                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Trạng thái</th>
-                        <th class="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Hành động</th>
+                    <tr class="bg-slate-50 border-b border-slate-100">
+                        <th class="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Mã GD</th>
+                        {% if session.get('role') != 'client' %}
+                        <th class="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Khách hàng</th>
+                        {% endif %}
+                        <th class="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Loại giao dịch</th>
+                        <th class="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Số tiền</th>
+                        <th class="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Minh chứng</th>
+                        <th class="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Ngày tạo</th>
+                        <th class="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Trạng thái</th>
+                        <th class="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Hành động</th>
                     </tr>
                 </thead>
                 <tbody id="transaction-list" class="divide-y divide-slate-50">
-                    <!-- Data will be loaded here via AJAX -->
+                    <!-- Skeleton -->
+                    {% for i in range(3) %}
+                    <tr class="animate-pulse">
+                        <td class="px-8 py-5"><div class="h-4 w-12 bg-slate-100 rounded-lg"></div></td>
+                        {% if session.get('role') != 'client' %}
+                        <td class="px-8 py-5"><div class="h-5 w-32 bg-slate-100 rounded-lg"></div></td>
+                        {% endif %}
+                        <td class="px-8 py-5"><div class="h-5 w-24 bg-slate-100 rounded-full"></div></td>
+                        <td class="px-8 py-5"><div class="h-5 w-20 bg-slate-100 rounded-lg"></div></td>
+                        <td class="px-8 py-5"><div class="h-10 w-10 bg-slate-100 rounded-lg"></div></td>
+                        <td class="px-8 py-5"><div class="h-5 w-24 bg-slate-100 rounded-md"></div></td>
+                        <td class="px-8 py-5"><div class="h-5 w-24 bg-slate-100 rounded-full"></div></td>
+                        <td class="px-8 py-5 text-right"><div class="h-8 w-20 bg-slate-100 rounded-lg ml-auto"></div></td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<!-- Image Viewer Modal -->
-<div id="image-viewer" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/90 p-4" onclick="this.classList.add('hidden')">
-    <img id="full-image" src="" class="max-w-full max-h-full rounded-2xl shadow-2xl">
+<!-- Image Lightbox Viewer -->
+<div id="image-viewer" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4" onclick="this.classList.add('hidden')">
+    <div class="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl border border-white/10" onclick="event.stopPropagation()">
+        <button onclick="document.getElementById('image-viewer').classList.add('hidden')" class="absolute top-4 right-4 bg-slate-900/60 hover:bg-slate-900 text-white p-2.5 rounded-full transition-all z-20">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <img id="full-image" src="" class="max-w-full max-h-[85vh] object-contain block mx-auto">
+    </div>
 </div>
 
 <!-- Reject Reason Modal -->
-<div id="reject-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-    <div class="bg-white w-full max-w-md rounded-[2rem] p-8 animate-in zoom-in duration-200">
-        <h3 class="text-xl font-black text-slate-900 mb-4">Từ chối Giao dịch</h3>
-        <textarea id="reject-reason" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-rose-500 mb-6" rows="4" placeholder="Nhập lý do từ chối..."></textarea>
-        <div class="flex gap-3">
-            <button onclick="document.getElementById('reject-modal').classList.add('hidden')" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">Hủy</button>
-            <button id="confirm-reject-btn" class="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold text-sm">Xác nhận Từ chối</button>
+<div id="reject-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div class="bg-rose-600 p-8 text-white relative">
+            <button onclick="document.getElementById('reject-modal').classList.add('hidden')" class="absolute top-6 right-6 text-white/60 hover:text-white transition-colors">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+            <div class="bg-white/20 w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
+                <i data-lucide="x-circle" class="w-8 h-8"></i>
+            </div>
+            <h3 class="text-2xl font-black">Từ chối giao dịch</h3>
+            <p class="text-rose-100 text-xs mt-1">Vui lòng cung cấp lý do từ chối rõ ràng để gửi thông báo lại cho khách hàng.</p>
+        </div>
+        
+        <div class="p-8 space-y-6">
+            <div class="space-y-2">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Lý do từ chối *</label>
+                <textarea id="reject-reason" required rows="4" placeholder="Nhập lý do chi tiết (ví dụ: Biên lai không khớp số tiền, biên lai giả mạo...)" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm focus:border-rose-600 focus:bg-white outline-none transition-all font-semibold text-slate-700"></textarea>
+            </div>
+            
+            <div class="flex gap-4">
+                <button onclick="document.getElementById('reject-modal').classList.add('hidden')" class="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Hủy</button>
+                <button id="confirm-reject-btn" class="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-rose-600/30 hover:bg-rose-700 transition-all">Xác nhận Từ chối</button>
+            </div>
         </div>
     </div>
 </div>
@@ -76,56 +204,141 @@ $(function() {
 });
 
 async function loadTransactions() {
-    // Load cả pending và confirmed
-    const res = await fetch("/admin/api/transactions");
-    const data = await res.json();
-    const filtered = data.filter(tx => tx.status === 'pending' || tx.status === 'confirmed');
-    $('#pending-count').text(filtered.length);
-    renderTransactions(filtered);
+    const status = $('#filter-status').val();
+    const type = $('#filter-type').val();
+    
+    let url = `/admin/api/transactions?_t=${Date.now()}`;
+    if (status) url += `&status=${status}`;
+    if (type) url += `&type=${type}`;
+    
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        // Calculate dynamic stats
+        let pending = 0;
+        let completed = 0;
+        let totalTopup = 0;
+        let totalDeduct = 0;
+        
+        data.forEach(tx => {
+            if (tx.status === 'pending') pending++;
+            if (tx.status === 'completed') completed++;
+            if (tx.status === 'completed' || tx.status === 'confirmed') {
+                if (tx.type === 'topup' || tx.type === 'deposit') {
+                    totalTopup += parseFloat(tx.amount || 0);
+                } else if (tx.type === 'deduction') {
+                    totalDeduct += parseFloat(tx.amount || 0);
+                }
+            }
+        });
+        
+        $('#pending-count').text(pending);
+        $('#completed-count').text(completed);
+        $('#total-topup-sum').text(new Intl.NumberFormat('vi-VN').format(totalTopup) + 'đ');
+        $('#total-deduction-sum').text(new Intl.NumberFormat('vi-VN').format(totalDeduct) + 'đ');
+        
+        renderTransactions(data);
+    } catch(err) {
+        showToast('Không thể kết nối máy chủ để tải dữ liệu!', 'error');
+    }
 }
 
 function renderTransactions(list) {
+    const tbody = $('#transaction-list');
     const role = "{{ session.get('role') }}";
+    
+    if (list.length === 0) {
+        tbody.html(`
+            <tr>
+                <td colspan="${role === 'client' ? 7 : 8}" class="px-8 py-16 text-center text-slate-400 font-medium">
+                    <div class="flex flex-col items-center justify-center gap-3">
+                        <i data-lucide="credit-card" class="w-12 h-12 opacity-30"></i>
+                        <span>Không tìm thấy giao dịch nào khớp với điều kiện lọc.</span>
+                    </div>
+                </td>
+            </tr>
+        `);
+        lucide.createIcons();
+        return;
+    }
+
     const html = list.map(tx => {
         const isPending = tx.status === 'pending';
-        const isConfirmed = tx.status === 'confirmed';
-        
-        let statusBadge = '';
-        if (isPending) statusBadge = '<span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-amber-50 text-amber-600">Chờ xác nhận</span>';
-        if (isConfirmed) statusBadge = '<span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-indigo-50 text-indigo-600">Đã xác nhận</span>';
+        const isCompleted = tx.status === 'completed';
+        const isRejected = tx.status === 'rejected';
 
-        let actionBtn = '';
-        if (role === 'marketer' && isPending) {
-            actionBtn = `<button onclick="approveTx(${tx.id})" title="Xác nhận chứng từ" class="bg-indigo-500 text-white p-2 rounded-xl hover:bg-indigo-600 shadow-lg shadow-indigo-100"><i data-lucide="shield-check" class="w-4 h-4"></i></button>`;
-        } else if (role === 'admin') {
-            actionBtn = `<button onclick="approveTx(${tx.id})" title="Phê duyệt nạp tiền" class="bg-emerald-500 text-white p-2 rounded-xl hover:bg-emerald-600 shadow-lg shadow-emerald-100"><i data-lucide="check" class="w-4 h-4"></i></button>`;
+        // Type Badge styling
+        let typeBadge = '';
+        if (tx.type === 'topup' || tx.type === 'deposit') {
+            typeBadge = '<span class="px-2.5 py-1 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 tracking-wider">Nạp tiền</span>';
+        } else if (tx.type === 'deduction') {
+            typeBadge = '<span class="px-2.5 py-1 rounded-full text-[9px] font-black uppercase bg-indigo-50 text-indigo-600 tracking-wider">Trừ phí</span>';
+        } else {
+            typeBadge = `<span class="px-2.5 py-1 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-600 tracking-wider">${tx.type || 'Hoàn tiền'}</span>`;
         }
 
-        return `
-        <tr class="hover:bg-slate-50/50 transition-colors">
-            <td class="px-6 py-5">
-                <p class="text-sm font-black text-slate-800">${tx.customer_name}</p>
-                <p class="text-[10px] text-slate-400 uppercase font-bold">${moment(tx.created_at).format('DD/MM/YYYY HH:mm')}</p>
-            </td>
-            <td class="px-6 py-5 text-sm font-black text-indigo-600">+${new Intl.NumberFormat('vi-VN').format(tx.amount)}đ</td>
-            <td class="px-6 py-5">
-                ${tx.proof_image ? `
-                    <img src="${tx.proof_image}" class="w-12 h-12 object-cover rounded-lg proof-thumb" onclick="viewImage('${tx.proof_image}')">
-                ` : '<span class="text-[10px] text-slate-300 font-bold uppercase">No Image</span>'}
-            </td>
-            <td class="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-wider">${tx.payment_method}</td>
-            <td class="px-6 py-5">${statusBadge}</td>
-            <td class="px-6 py-5 text-right">
+        // Amount styling
+        let amountText = '';
+        if (tx.type === 'topup' || tx.type === 'deposit') {
+            amountText = `<span class="font-extrabold text-sm text-emerald-600">+${new Intl.NumberFormat('vi-VN').format(tx.amount)}đ</span>`;
+        } else {
+            amountText = `<span class="font-extrabold text-sm text-rose-500">-${new Intl.NumberFormat('vi-VN').format(tx.amount)}đ</span>`;
+        }
+
+        // Status Badge styling
+        let statusBadge = '';
+        if (isPending) {
+            statusBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-600"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Chờ duyệt</span>';
+        } else if (isCompleted) {
+            statusBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Thành công</span>';
+        } else {
+            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-50 text-rose-600" title="Lý do: ${tx.reject_reason}"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Bị từ chối</span>`;
+        }
+
+        // Action buttons (Only for admin/marketer and pending transactions)
+        let actions = '';
+        if (role !== 'client' && isPending) {
+            actions = `
                 <div class="flex justify-end gap-2">
-                    ${actionBtn}
-                    <button onclick="showRejectModal(${tx.id})" class="bg-rose-50 text-rose-500 p-2 rounded-xl hover:bg-rose-500 hover:text-white transition-all">
+                    <button onclick="approveTx(${tx.id})" class="p-2 bg-emerald-50 hover:bg-emerald-500 hover:text-white text-emerald-600 rounded-xl transition-all shadow-sm" title="Phê duyệt giao dịch">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="showRejectModal(${tx.id})" class="p-2 bg-rose-50 hover:bg-rose-500 hover:text-white text-rose-600 rounded-xl transition-all shadow-sm" title="Từ chối giao dịch">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
-            </td>
-        </tr>
-    `;}).join('');
-    $('#transaction-list').html(html);
+            `;
+        } else if (isRejected && tx.reject_reason) {
+            actions = `<span class="text-[10px] text-rose-400 font-bold block max-w-[150px] truncate" title="${tx.reject_reason}">Lý do: ${tx.reject_reason}</span>`;
+        } else if (tx.description) {
+            actions = `<span class="text-[10px] text-slate-400 font-bold block max-w-[150px] truncate" title="${tx.description}">${tx.description}</span>`;
+        } else {
+            actions = '—';
+        }
+
+        // proof thumbnail click
+        const proofHtml = tx.proof_image ? `
+            <img src="${tx.proof_image}" class="w-10 h-10 object-cover rounded-xl proof-thumb border border-slate-100 shadow-sm" onclick="viewImage('${tx.proof_image}')">
+        ` : '<span class="text-[9px] text-slate-300 font-black uppercase tracking-widest block pl-2">—</span>';
+
+        const clientColHtml = role !== 'client' ? `<td class="px-8 py-5"><span class="font-extrabold text-slate-800 text-sm">${tx.customer_name}</span></td>` : '';
+
+        return `
+            <tr class="hover:bg-slate-50/50 transition-all duration-200">
+                <td class="px-8 py-5"><span class="font-mono text-xs text-slate-500 font-bold">#${tx.id}</span></td>
+                ${clientColHtml}
+                <td class="px-8 py-5">${typeBadge}</td>
+                <td class="px-8 py-5">${amountText}</td>
+                <td class="px-8 py-5">${proofHtml}</td>
+                <td class="px-8 py-5 text-xs font-semibold text-slate-400">${tx.created_at}</td>
+                <td class="px-8 py-5">${statusBadge}</td>
+                <td class="px-8 py-5 text-right font-semibold">${actions}</td>
+            </tr>
+        `;
+    }).join('');
+
+    tbody.html(html);
     lucide.createIcons();
 }
 
@@ -136,41 +349,105 @@ function viewImage(url) {
 
 function showRejectModal(id) {
     currentTxId = id;
+    $('#reject-reason').val('');
     $('#reject-modal').removeClass('hidden');
 }
 
 async function approveTx(id) {
-    if(!confirm('Phê duyệt giao dịch này và cộng tiền vào tài khoản khách hàng?')) return;
-    const res = await fetch(`/admin/api/transactions/${id}/approve`, { 
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+    Swal.fire({
+        title: 'Phê duyệt giao dịch?',
+        text: "Hệ thống sẽ tự động cộng số dư cho khách hàng và sinh hóa đơn PDF biên lai.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Phê duyệt ngay',
+        cancelButtonText: 'Hủy'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch(`/admin/api/transactions/${id}/approve`, { 
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Đã phê duyệt!',
+                        text: 'Cộng tiền và sinh hóa đơn hoàn tất.',
+                        icon: 'success',
+                        confirmButtonColor: '#4f46e5'
+                    });
+                    loadTransactions();
+                } else {
+                    Swal.fire({
+                        title: 'Lỗi',
+                        text: data.message || 'Thất bại!',
+                        icon: 'error'
+                    });
+                }
+            } catch(e) {
+                Swal.fire({
+                    title: 'Lỗi kết nối',
+                    text: 'Không thể kết nối máy chủ.',
+                    icon: 'error'
+                });
+            }
         }
     });
-    const data = await res.json();
-    if(data.success) {
-        showToast('Đã phê duyệt giao dịch!');
-        loadTransactions();
-    }
 }
 
 $('#confirm-reject-btn').on('click', async () => {
-    const reason = $('#reject-reason').val();
-    if(!reason) return alert('Vui lòng nhập lý do từ chối');
-    
-    const res = await fetch(`/admin/api/transactions/${currentTxId}/reject`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({ reason })
-    });
-    const data = await res.json();
-    if(data.success) {
-        $('#reject-modal').addClass('hidden');
-        showToast('Đã từ chối giao dịch');
-        loadTransactions();
+    const reason = $('#reject-reason').val().strip ? $('#reject-reason').val().strip() : $('#reject-reason').val().trim();
+    if (!reason) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Lỗi',
+            text: 'Vui lòng nhập lý do từ chối giao dịch!'
+        });
+    }
+
+    const btn = $('#confirm-reject-btn');
+    const origHtml = btn.html();
+    btn.prop('disabled', true).html('<span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>');
+
+    try {
+        const res = await fetch(`/admin/api/transactions/${currentTxId}/reject`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ reason })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            $('#reject-modal').addClass('hidden');
+            Swal.fire({
+                title: 'Đã từ chối!',
+                text: 'Từ chối giao dịch hoàn tất.',
+                icon: 'success',
+                confirmButtonColor: '#4f46e5'
+            });
+            loadTransactions();
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi',
+                text: data.message || 'Có lỗi xảy ra!'
+            });
+        }
+    } catch(err) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Lỗi kết nối',
+            text: 'Không thể kết nối với máy chủ!'
+        });
+    } finally {
+        btn.prop('disabled', false).html(origHtml);
     }
 });
 </script>

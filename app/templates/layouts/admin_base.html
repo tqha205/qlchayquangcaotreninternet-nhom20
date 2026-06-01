@@ -134,14 +134,21 @@
 
                 <a href="{{ url_for('admin.platforms_page') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.platforms_page' %}sidebar-active text-white{% endif %}">
                     <i data-lucide="layers" class="w-5 h-5"></i>
-                    <span class="font-medium">Quản lý Dịch vụ</span>
+                    <span class="font-medium">Quản lý Nền tảng</span>
                 </a>
+
+                {% endif %}
 
                 <a href="{{ url_for('admin.transaction_manage') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-white/5 hover:text-white {% if request.endpoint == 'admin.transaction_manage' %}sidebar-active text-white{% endif %}">
                     <i data-lucide="credit-card" class="w-5 h-5"></i>
-                    <span class="font-medium">Quản lý nạp tiền</span>
+                    <span class="font-medium">
+                        {% if session.get('role') == 'client' %}
+                        Lịch sử Giao dịch
+                        {% else %}
+                        Quản lý Giao dịch
+                        {% endif %}
+                    </span>
                 </a>
-                {% endif %}
             </nav>
 
             <!-- Profile Section -->
@@ -182,13 +189,14 @@
                     <!-- Balance Display for Client -->
                     <div class="flex items-center gap-3 bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-xl shadow-sm">
                         <div class="text-right">
-                            <p class="text-[10px] font-black uppercase tracking-tight text-indigo-400 leading-none mb-1">Số dư</p>
+                            <p class="text-[10px] font-black uppercase tracking-tight text-indigo-400 leading-none mb-1">Hóa đơn chưa thanh toán</p>
                             <p class="text-sm font-black text-indigo-700 leading-none" id="header-balance">
                                 {{ "{:,.0f}".format(balance|default(0)) }}đ
                             </p>
                         </div>
-                        <button onclick="openDepositModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-all shadow-md shadow-indigo-100 flex items-center gap-1.5" title="Nạp thêm tiền">
-                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <button onclick="openDepositModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center gap-1.5" title="Thanh toán Hóa đơn">
+                            <i data-lucide="credit-card" class="w-4 h-4"></i>
+                            <span class="text-xs font-bold hidden lg:inline">Thanh toán Hóa đơn</span>
                         </button>
                     </div>
                     {% endif %}
@@ -227,7 +235,7 @@
         </main>
     </div>
 
-    <!-- Deposit Modal (Simulated) -->
+    <!-- Redesigned B2B Payment Modal -->
     <div id="depositModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
         <div class="bg-white rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
             <div class="bg-indigo-600 p-8 text-white relative">
@@ -235,26 +243,50 @@
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
                 <div class="bg-white/20 w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
-                    <i data-lucide="wallet" class="w-8 h-8"></i>
+                    <i data-lucide="credit-card" class="w-8 h-8"></i>
                 </div>
-                <h3 class="text-2xl font-black">Nạp tiền vào tài khoản</h3>
-                <p class="text-indigo-100 text-sm mt-1">Hệ thống sẽ cộng tiền ngay lập tức (Simulation).</p>
+                <h3 class="text-2xl font-black">Thanh toán Hóa đơn</h3>
+                <p class="text-indigo-100 text-sm mt-1">Chọn hóa đơn chưa thanh toán và tải lên biên lai chuyển khoản.</p>
             </div>
-            <div class="p-8 space-y-6">
-                <div>
-                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Số tiền muốn nạp (VNĐ)</label>
-                    <input type="number" id="depositAmount" placeholder="Ví dụ: 5000000" class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-primary focus:bg-white outline-none transition-all font-bold text-lg">
+            <form id="paymentModalForm" onsubmit="handleProofUpload(event)" class="p-8 space-y-6" enctype="multipart/form-data">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Chọn hóa đơn cần thanh toán</label>
+                    <div class="relative">
+                        <select id="modalInvoiceSelect" name="invoice_id" onchange="updateModalInvoiceAmount()" class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-sm text-slate-700 appearance-none">
+                            <option value="">-- Đang tải danh sách hóa đơn... --</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick="setDepositAmount(1000000)" class="flex-1 py-2 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all underline-offset-4">1 Triệu</button>
-                    <button onclick="setDepositAmount(5000000)" class="flex-1 py-2 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all underline-offset-4">5 Triệu</button>
-                    <button onclick="setDepositAmount(10000000)" class="flex-1 py-2 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all underline-offset-4">10 Triệu</button>
+                
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-1">
+                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Số tiền cần thanh toán</span>
+                    <h4 class="text-2xl font-black text-indigo-600" id="modalInvoiceAmount">0đ</h4>
                 </div>
-                <button onclick="handleDeposit()" id="depositSubmitBtn" class="w-full bg-primary text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
-                    <i data-lucide="zap" class="w-5 h-5"></i>
-                    Xác nhận nạp tiền
+
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Biên lai chuyển khoản (Ảnh)</label>
+                    <div class="relative flex items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-slate-50 hover:bg-slate-100/50 transition-all cursor-pointer">
+                        <input type="file" id="modalProofFile" name="proof_image" accept="image/*" required class="absolute inset-0 opacity-0 cursor-pointer z-10" onchange="previewProofImage(event)">
+                        <div class="text-center space-y-2" id="proofUploadPlaceholder">
+                            <i data-lucide="upload-cloud" class="w-8 h-8 text-indigo-600 mx-auto"></i>
+                            <p class="text-xs font-bold text-slate-500">Kéo thả hoặc click để chọn ảnh biên lai</p>
+                            <p class="text-[10px] text-slate-400 font-medium">Định dạng JPG, PNG...</p>
+                        </div>
+                        <div class="hidden text-center space-y-2" id="proofUploadPreviewContainer">
+                            <img id="proofUploadPreview" src="" class="max-h-32 rounded-lg mx-auto shadow-sm border border-slate-200">
+                            <p class="text-[10px] font-bold text-indigo-600">Đã chọn ảnh - Click để thay đổi</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" id="depositSubmitBtn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2">
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                    Gửi biên lai thanh toán
                 </button>
-            </div>
+            </form>
         </div>
     </div>
 
@@ -387,45 +419,139 @@
         fetchNotifications();
         setInterval(fetchNotifications, 60000);
 
-        // ── Deposit Logic ─────────────────────────────────────────────────────
+        // ── Deposit / B2B Payment Logic ──────────────────────────────────────
         function openDepositModal() {
-            location.href = "{{ url_for('admin.deposit_page') }}";
+            document.getElementById('depositModal').classList.remove('hidden');
+            loadPendingInvoicesForModal();
         }
         function closeDepositModal() {
             document.getElementById('depositModal').classList.add('hidden');
+            // Reset form
+            document.getElementById('paymentModalForm').reset();
+            document.getElementById('modalInvoiceAmount').innerText = '0đ';
+            document.getElementById('proofUploadPlaceholder').classList.remove('hidden');
+            document.getElementById('proofUploadPreviewContainer').classList.add('hidden');
         }
-        function setDepositAmount(val) {
-            document.getElementById('depositAmount').value = val;
-        }
-        async function handleDeposit() {
-            const amount = document.getElementById('depositAmount').value;
-            if (!amount || amount <= 0) return alert('Vui lòng nhập số tiền hợp lệ!');
-
-            const btn = document.getElementById('depositSubmitBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>';
-
+        async function loadPendingInvoicesForModal() {
+            const select = document.getElementById('modalInvoiceSelect');
+            const amountDisplay = document.getElementById('modalInvoiceAmount');
+            if (!select) return;
+            
+            select.innerHTML = '<option value="">-- Đang tải danh sách hóa đơn... --</option>';
+            amountDisplay.innerText = '0đ';
+            
             try {
-                const res = await fetch("{{ url_for('admin.deposit') }}", {
+                const res = await fetch('/admin/api/invoices/pending');
+                const data = await res.json();
+                
+                if (data.success && data.invoices.length > 0) {
+                    select.innerHTML = '<option value="">-- Chọn Hóa đơn --</option>' + data.invoices.map(inv => {
+                        return `<option value="${inv.id}" data-amount="${inv.amount}">${inv.invoice_number} (${inv.campaign_name}) - ${new Intl.NumberFormat('vi-VN').format(inv.amount)}đ</option>`;
+                    }).join('');
+                    lucide.createIcons();
+                } else {
+                    select.innerHTML = '<option value="">-- Không có hóa đơn chờ thanh toán --</option>';
+                }
+            } catch(e) {
+                select.innerHTML = '<option value="">-- Lỗi tải danh sách hóa đơn --</option>';
+            }
+        }
+
+        function updateModalInvoiceAmount() {
+            const select = document.getElementById('modalInvoiceSelect');
+            const amountDisplay = document.getElementById('modalInvoiceAmount');
+            if (!select || !amountDisplay) return;
+            
+            const selectedOpt = select.options[select.selectedIndex];
+            const amount = selectedOpt ? selectedOpt.getAttribute('data-amount') : null;
+            
+            if (amount) {
+                amountDisplay.innerText = new Intl.NumberFormat('vi-VN').format(parseFloat(amount)) + 'đ';
+            } else {
+                amountDisplay.innerText = '0đ';
+            }
+        }
+
+        function previewProofImage(event) {
+            const input = event.target;
+            const reader = new FileReader();
+            reader.onload = function(){
+                const dataURL = reader.result;
+                const preview = document.getElementById('proofUploadPreview');
+                preview.src = dataURL;
+                document.getElementById('proofUploadPlaceholder').classList.add('hidden');
+                document.getElementById('proofUploadPreviewContainer').classList.remove('hidden');
+            };
+            if(input.files && input.files[0]) {
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function handleProofUpload(e) {
+            e.preventDefault();
+            const invoiceId = document.getElementById('modalInvoiceSelect').value;
+            const fileInput = document.getElementById('modalProofFile');
+            
+            if (!invoiceId) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'Thông báo',
+                    text: 'Vui lòng chọn hóa đơn cần thanh toán!'
+                });
+            }
+            if (!fileInput.files[0]) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'Thông báo',
+                    text: 'Vui lòng chọn ảnh biên lai chứng từ!'
+                });
+            }
+            
+            const btn = document.getElementById('depositSubmitBtn');
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Đang gửi biên lai...';
+            
+            const formData = new FormData();
+            formData.append('invoice_id', invoiceId);
+            formData.append('proof_image', fileInput.files[0]);
+            
+            try {
+                const res = await fetch('/admin/api/transactions/upload_proof', {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
+                    headers: {
                         'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                     },
-                    body: JSON.stringify({ amount: parseFloat(amount) })
+                    body: formData
                 });
-                const json = await res.json();
-                if (json.success) {
-                    alert(json.message);
-                    location.reload(); // Reload để cập nhật số dư everywhere
+                const data = await res.json();
+                
+                if (data.success) {
+                    closeDepositModal();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Tải biên lai thành công!',
+                        text: data.message,
+                        confirmButtonColor: '#4f46e5'
+                    }).then(() => {
+                        location.reload();
+                    });
                 } else {
-                    alert('Lỗi: ' + json.message);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Thất bại',
+                        text: data.message
+                    });
                 }
-            } catch (err) {
-                alert('Lỗi kết nối hệ thống!');
+            } catch(err) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi kết nối',
+                    text: 'Không thể kết nối với máy chủ!'
+                });
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="zap" class="w-5 h-5"></i> Xác nhận nạp tiền';
+                btn.innerHTML = origText;
                 lucide.createIcons();
             }
         }
@@ -447,6 +573,11 @@
         // Nhận event budget_warning
         socket.on('budget_warning', (data) => {
             processBatchToast(data);
+        });
+
+        // Nhận event low_balance_warning
+        socket.on('low_balance_warning', (data) => {
+            showToast(data.message, 'error');
         });
 
         function processBatchToast(data) {

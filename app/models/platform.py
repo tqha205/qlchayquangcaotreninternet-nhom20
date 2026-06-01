@@ -5,7 +5,12 @@ class PlatformModel(DBModel):
 
     @staticmethod
     def get_all():
-        sql = "SELECT * FROM platforms ORDER BY name ASC"
+        sql = """
+            SELECT p.*, 
+                   (SELECT COUNT(*) FROM campaigns c WHERE c.platform_id = p.id AND c.status = 'Đang chạy' AND c.is_deleted = 0) AS active_campaigns_count
+            FROM platforms p 
+            ORDER BY p.name ASC
+        """
         return DBModel.fetch_all(sql)
 
     @staticmethod
@@ -14,14 +19,26 @@ class PlatformModel(DBModel):
         return DBModel.fetch_one(sql, (platform_id,))
 
     @staticmethod
-    def create(name, account_id=None, status='active'):
-        sql = "INSERT INTO platforms (name, account_id, status) VALUES (%s, %s, %s)"
-        return DBModel.execute(sql, (name, account_id, status))
+    def get_facebook_platform():
+        """Lấy nền tảng Facebook hoạt động."""
+        sql = "SELECT * FROM platforms WHERE LOWER(name) LIKE '%facebook%' LIMIT 1"
+        return DBModel.fetch_one(sql)
 
     @staticmethod
-    def update(platform_id, name, account_id, status):
-        sql = "UPDATE platforms SET name=%s, account_id=%s, status=%s WHERE id=%s"
-        return DBModel.execute(sql, (name, account_id, status, platform_id))
+    def create(name, account_id=None, status='active', access_token=None):
+        sql = "INSERT INTO platforms (name, account_id, status, access_token) VALUES (%s, %s, %s, %s)"
+        return DBModel.execute(sql, (name, account_id, status, access_token))
+
+    @staticmethod
+    def update(platform_id, name, account_id, status, access_token=None):
+        sql = "UPDATE platforms SET name=%s, account_id=%s, status=%s, access_token=%s WHERE id=%s"
+        return DBModel.execute(sql, (name, account_id, status, access_token, platform_id))
+
+    @staticmethod
+    def update_token(platform_id, access_token, status='active'):
+        """Cập nhật Access Token của nền tảng sau khi OAuth thành công."""
+        sql = "UPDATE platforms SET access_token=%s, status=%s WHERE id=%s"
+        return DBModel.execute(sql, (access_token, status, platform_id))
 
     @staticmethod
     def delete(platform_id):

@@ -65,11 +65,13 @@ def create_app():
     from .controllers.admin_controller import admin_bp
     from .controllers.public_controller import public_bp
     from .controllers.reports_controller import reports_bp
+    from .controllers.payment_controller import payment_bp
 
     app.register_blueprint(auth_bp,    url_prefix='/auth')
     app.register_blueprint(admin_bp,   url_prefix='/admin')
     app.register_blueprint(public_bp,  url_prefix='/')
     app.register_blueprint(reports_bp, url_prefix='/admin/reports')
+    app.register_blueprint(payment_bp, url_prefix='/payment')
 
     # Khởi tạo Scheduler (Jobs)
     from app.jobs import init_scheduler

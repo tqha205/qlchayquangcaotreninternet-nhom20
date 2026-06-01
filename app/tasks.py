@@ -34,80 +34,123 @@ logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────
-# TASK 1: Đồng bộ Mock Data Chi tiêu
+# TASK 1: Đồng bộ dữ liệu Facebook Graph API / Mock Data
 # ─────────────────────────────────────────────
 @celery.task(name='tasks.sync_mock_data', bind=True, max_retries=3)
 def sync_mock_data(self):
     """
-    Task Celery: Tự động sinh dữ liệu chi tiêu hàng ngày cho các
-    chiến dịch 'Đang chạy'. Thay thế cho job_auto_sync_mock_data() trong APScheduler.
+    Task Celery: Đồng bộ dữ liệu chi dịch QC từ Facebook Graph API thực tế thay vì mock data.
     """
-    logger.info("[CELERY TASK] Bắt đầu đồng bộ Mock Data...")
+    logger.info("[CELERY TASK] Bắt đầu đồng bộ dữ liệu chiến dịch từ Facebook Graph API...")
     try:
         from app.models.campaign import CampaignModel
+        from app.models.platform import PlatformModel
+        from app.models.daily_report import DailyReportModel
         from app.extensions import db
-        from sqlalchemy import text
+        import requests
+        from datetime import datetime, timedelta
 
-        # Query using SQLAlchemy ORM
+        # Lấy các chiến dịch đang hoạt động và không bị xóa
         campaigns = CampaignModel.query.filter(
             CampaignModel.status == 'Đang chạy',
             CampaignModel.is_deleted == False
         ).all()
         
-        today_str = datetime.now().strftime('%Y-%m-%d')
+        yesterday_str = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        processed_count = 0
 
         for c in campaigns:
-            cam_id = c.id
-            budget = float(c.budget or 0)
-            spent  = float(c.spent or 0)
-            if spent >= budget:
+            # Lấy thông tin platform tương ứng
+            if not c.platform_id:
+                continue
+            
+            platform = PlatformModel.get_by_id(c.platform_id)
+            if not platform:
                 continue
 
-            daily_spent = random.randint(100000, 500000)
-            remaining   = budget - spent
-            if daily_spent > remaining:
-                daily_spent = remaining
+            # Chỉ xử lý nếu là Facebook và có access_token + account_id
+            name_lower = platform.get('name', '').lower()
+            access_token = platform.get('access_token')
+            account_id = platform.get('account_id')
 
-            impressions = random.randint(1000, 10000)
-            clicks      = int(impressions * random.uniform(0.01, 0.05))
+            if 'facebook' in name_lower and access_token and account_id:
+                logger.info(f"Đang đồng bộ dữ liệu Facebook API cho Chiến dịch #{c.id} (Tài khoản: {account_id})")
+                try:
+                    # Gọi Graph API /v19.0/{account_id}/insights
+                    act_id = account_id if account_id.startswith('act_') else f"act_{account_id}"
+                    url = f"https://graph.facebook.com/v19.0/{act_id}/insights"
+                    
+                    params = {
+                        'access_token': access_token,
+                        'time_range': f'{{"since":"{yesterday_str}","until":"{yesterday_str}"}}',
+                        'fields': 'spend,clicks,impressions',
+                        'level': 'campaign'
+                    }
+                    
+                    resp = requests.get(url, params=params, timeout=15)
+                    resp.raise_for_status()
+                    data = resp.json().get('data', [])
+                    
+                    daily_spent = 0.0
+                    clicks = 0
+                    impressions = 0
+                    
+                    if data:
+                        # Graph API trả về kết quả
+                        insight = data[0]
+                        daily_spent = float(insight.get('spend', 0))
+                        clicks = int(insight.get('clicks', 0))
+                        impressions = int(insight.get('impressions', 0))
+                        logger.info(f"Facebook API trả về: spend={daily_spent}, clicks={clicks}, impressions={impressions}")
+                    else:
+                        logger.warning(f"Facebook Graph API không trả về dữ liệu cho ngày hôm qua ({yesterday_str})")
 
-            # DB Transaction block for safety
-            try:
-                db.session.begin(nested=True)
-                
-                # Check if exists in daily_spending
-                res = db.session.execute(
-                    text("SELECT id FROM daily_spending WHERE campaign_id = :cid AND date = :date"),
-                    {'cid': cam_id, 'date': today_str}
-                ).fetchone()
-                
-                if not res:
-                    db.session.execute(
-                        text("INSERT INTO daily_spending (campaign_id, date, amount_spent, clicks, impressions) VALUES (:cid, :date, :spent, :clicks, :impr)"),
-                        {'cid': cam_id, 'date': today_str, 'spent': daily_spent, 'clicks': clicks, 'impr': impressions}
+                    # Ghi dữ liệu vào bảng daily_reports
+                    DailyReportModel.log_daily(
+                        campaign_id=c.id,
+                        report_date=yesterday_str,
+                        daily_spent=daily_spent,
+                        clicks=clicks,
+                        impressions=impressions,
+                        conversions=int(clicks * 0.1)
                     )
+                    
+                    # Cộng dồn chi tiêu thực tế vào c.spent
+                    db.session.begin(nested=True)
                     c.spent = CampaignModel.spent + daily_spent
-                    logger.info(f"  + Chiến dịch #{cam_id}: +{daily_spent}đ")
+                    db.session.commit()
+                    processed_count += 1
+
+                except Exception as api_err:
+                    logger.error(f"Lỗi khi gọi Facebook API cho Chiến dịch #{c.id}: {api_err}")
+                    if "OAuthException" in str(api_err) or "190" in str(api_err):
+                        PlatformModel.update_token(platform['id'], access_token, status='error')
+            else:
+                # Mock fallback
+                logger.info(f"Chiến dịch #{c.id} chưa kết nối Facebook API hoặc không phải Facebook. Sử dụng mock data thay thế.")
+                daily_spent = random.randint(50000, 200000)
+                impressions = random.randint(500, 3000)
+                clicks = int(impressions * random.uniform(0.01, 0.04))
                 
+                DailyReportModel.log_daily(
+                    campaign_id=c.id,
+                    report_date=yesterday_str,
+                    daily_spent=daily_spent,
+                    clicks=clicks,
+                    impressions=impressions,
+                    conversions=int(clicks * random.uniform(0.05, 0.15))
+                )
+                
+                db.session.begin(nested=True)
+                c.spent = CampaignModel.spent + daily_spent
                 db.session.commit()
-            except mysql.connector.Error as db_err:
-                db.session.rollback()
-                logger.error(f"[DB TRANSACTION ERROR] Failed updating campaign {cam_id}: {db_err}")
-                raise db_err
-            except Exception as e:
-                db.session.rollback()
-                logger.error(f"[UNEXPECTED TRANSACTION ERROR] Failed updating campaign {cam_id}: {e}")
-                raise e
+                processed_count += 1
 
-        logger.info("[CELERY TASK] Đồng bộ Mock Data hoàn tất.")
-        return {"status": "ok", "campaigns_processed": len(campaigns)}
+        logger.info(f"[CELERY TASK] Đồng bộ Facebook Graph API hoàn tất. Đã xử lý {processed_count} chiến dịch.")
+        return {"status": "ok", "campaigns_processed": processed_count}
 
-    except mysql.connector.Error as exc:
-        celery_logger.error(f"[CELERY DB ERROR] sync_mock_data: {str(exc)}")
-        sentry_sdk.capture_exception(exc)
-        raise self.retry(exc=exc, countdown=30)
     except Exception as exc:
-        celery_logger.error(f"[CELERY UNEXPECTED ERROR] sync_mock_data: {str(exc)}")
+        celery_logger.error(f"[CELERY ERROR] sync_mock_data: {str(exc)}")
         sentry_sdk.capture_exception(exc)
         raise self.retry(exc=exc, countdown=30)
 
@@ -279,3 +322,65 @@ def aggregate_daily_spending():
     except Exception as e:
         db.session.rollback()
         print(f"❌ Lỗi không xác định tổng hợp dữ liệu: {e}")
+
+
+@celery.task(name='tasks.send_invoice_email', bind=True, max_retries=3)
+def send_invoice_email(self, customer_email, customer_name, amount, invoice_number, pdf_path):
+    """
+    Task Celery: Gửi email xác nhận nạp tiền kèm đính kèm file hóa đơn PDF bằng SMTP.
+    """
+    import os
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email import encoders
+
+    smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+    smtp_port = int(os.getenv('SMTP_PORT', '587'))
+    smtp_user = os.getenv('SMTP_USER', '')
+    smtp_password = os.getenv('SMTP_PASSWORD', '')
+    smtp_sender = os.getenv('SMTP_SENDER', smtp_user or 'no-reply@adsmanager.com')
+
+    logger.info(f"[CELERY] Bắt đầu gửi email hóa đơn {invoice_number} tới {customer_email}...")
+
+    # Nếu không có tài khoản SMTP, giả lập thành công để tránh lỗi
+    if not smtp_user or not smtp_password:
+        logger.warning(f"[CELERY] Chưa cấu hình SMTP_USER/SMTP_PASSWORD. Giả lập gửi email thành công.")
+        return {"status": "simulated", "message": "SMTP credentials missing, email simulated successfully."}
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = smtp_sender
+        msg['To'] = customer_email
+        msg['Subject'] = f"[ADS Manager] Xác nhận nạp tiền thành công - Hóa đơn {invoice_number}"
+
+        body = f"Chào {customer_name},\n\nYêu cầu nạp tiền của bạn đã được duyệt và thực hiện thành công.\n\n- Số hóa đơn: {invoice_number}\n- Số tiền nạp: {float(amount):,.0f} VNĐ\n- Thời gian: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n\nChúng tôi xin đính kèm hóa đơn PDF thanh toán chi tiết của bạn trong email này.\nCảm ơn bạn đã đồng hành và sử dụng dịch vụ của ADS Manager!\n\nTrân trọng,\nĐội ngũ ADS Manager\nhttps://adsmanager.com"
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+
+        # Đính kèm file PDF hóa đơn
+        if os.path.exists(pdf_path):
+            with open(pdf_path, 'rb') as attachment:
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(attachment.read())
+                encoders.encode_base64(part)
+                part.add_header(
+                    'Content-Disposition',
+                    f"attachment; filename={os.path.basename(pdf_path)}"
+                )
+                msg.attach(part)
+        else:
+            logger.error(f"[CELERY] Không tìm thấy file PDF hóa đơn tại: {pdf_path}")
+
+        # Kết nối SMTP và gửi
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.sendmail(smtp_sender, customer_email, msg.as_string())
+
+        logger.info(f"[CELERY] Đã gửi email thành công tới {customer_email}")
+        return {"status": "sent", "recipient": customer_email}
+
+    except Exception as exc:
+        logger.error(f"[CELERY EMAIL ERROR] Thất bại khi gửi email tới {customer_email}: {str(exc)}")
+        raise self.retry(exc=exc, countdown=60)

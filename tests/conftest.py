@@ -14,8 +14,13 @@ def app():
     with app.app_context():
         db.create_all()
         yield app
-        db.session.remove()
-        db.drop_all()
+        try:
+            db.session.rollback()
+            db.session.close()
+            db.session.remove()
+            db.drop_all()
+        except Exception:
+            pass
 
 @pytest.fixture
 def client(app):

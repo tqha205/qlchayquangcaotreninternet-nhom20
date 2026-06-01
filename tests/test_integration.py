@@ -19,27 +19,36 @@ def app():
     with app.app_context():
         db.create_all()
         yield app
-        db.session.remove()
-        db.drop_all()
+        try:
+            db.session.rollback()
+            db.session.close()
+            db.session.remove()
+            db.drop_all()
+        except Exception:
+            pass
 
 @pytest.fixture
 def client(app):
     return app.test_client()
 
 def test_user_flow(client):
+    import time
+    unique_id = int(time.time() * 1000)
+    username = f"testuser_int_{unique_id}"
+    
     # 1. Register a new user
     reg_data = {
-        "username": "testuser",
+        "username": username,
         "password": "password123",
         "full_name": "Test User",
-        "email": "test@example.com",
+        "email": f"test_{unique_id}@example.com",
         "phone": "0987654321"
     }
     resp = client.post('/auth/register', json=reg_data)
     assert resp.status_code == 200
     
     # 2. Check if user and customer were created
-    user = UserModel.get_by_username("testuser")
+    user = UserModel.get_by_username(username)
     assert user is not None
     assert user.role == 'client'
     customer = CustomerModel.get_by_id(user.customer_id)

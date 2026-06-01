@@ -22,13 +22,14 @@ def job_auto_sync_mock_data():
     logger.info("[JOB] Bắt đầu đồng bộ Mock Data...")
     try:
         DBModel = get_db()
-        # 1. Lấy danh sách chiến dịch đang chạy
-        campaigns = DBModel.fetch_all("SELECT id, budget, spent FROM campaigns WHERE status = 'Đang chạy' AND is_deleted = 0")
+        # 1. Lấy danh sách chiến dịch đang chạy (lấy thêm customer_id)
+        campaigns = DBModel.fetch_all("SELECT id, customer_id, budget, spent FROM campaigns WHERE status = 'Đang chạy' AND is_deleted = 0")
         
         today_str = datetime.now().strftime('%Y-%m-%d')
         
         for c in campaigns:
             cam_id = c['id']
+            cust_id = c.get('customer_id')
             budget = float(c['budget'] or 0)
             spent  = float(c['spent'] or 0)
             
@@ -57,6 +58,11 @@ def job_auto_sync_mock_data():
                 # Cập nhật tổng spent
                 DBModel.execute("UPDATE campaigns SET spent = spent + %s WHERE id = %s", (daily_spent, cam_id))
                 logger.info(f"  + Chiến dịch #{cam_id}: +{daily_spent}đ")
+                
+                # Cảnh báo số dư ví cạn kiệt nếu dưới 500.000 VNĐ
+                if cust_id:
+                    from app.utils.alert_helpers import check_customer_balance_and_alert
+                    check_customer_balance_and_alert(cust_id)
                 
         logger.info("[JOB] Đồng bộ Mock Data hoàn tất.")
     except mysql.connector.Error as e:

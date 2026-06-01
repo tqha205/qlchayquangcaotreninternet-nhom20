@@ -20,6 +20,16 @@ class CampaignModel(db.Model):
     is_deleted = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Dictionary compatibility layer (both bracket and .get() access)
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
     @staticmethod
     def get_by_role(role, customer_id=None, marketer_id=None):
         query = CampaignModel.query.join(CampaignModel.customer).filter(CampaignModel.is_deleted == False)
@@ -82,20 +92,28 @@ class CampaignModel(db.Model):
         cam = CampaignModel.get_by_id(campaign_id)
         if not cam: return None
 
-        if cam.status in ('Chờ duyệt', 'Đã duyệt') or cam.approval_status in ('pending', 'approved'):
+        # Safely extract values from either a dictionary or an ORM model
+        status = cam.get('status') if isinstance(cam, dict) else getattr(cam, 'status', None)
+        approval_status = cam.get('approval_status') if isinstance(cam, dict) else getattr(cam, 'approval_status', None)
+        budget_val = cam.get('budget') if isinstance(cam, dict) else getattr(cam, 'budget', 0)
+        spent_val = cam.get('spent') if isinstance(cam, dict) else getattr(cam, 'spent', 0)
+
+        if status in ('Chờ duyệt', 'Đã duyệt') or approval_status in ('pending', 'approved'):
             return {
                 'spent_ratio': 0, 'impressions': 0, 'clicks': 0, 'ctr': 0, 'cpc': 0,
-                'label': cam.status, 'label_css': 'bg-slate-100 text-slate-600' if cam.status == 'Chờ duyệt' else 'bg-sky-50 text-sky-600',
+                'label': status or 'Chờ duyệt', 
+                'label_css': 'bg-slate-100 text-slate-600' if status == 'Chờ duyệt' else 'bg-sky-50 text-sky-600',
             }
 
-        budget = float(cam.budget or 0)
-        spent = float(cam.spent or 0)
+        budget = float(budget_val or 0)
+        spent = float(spent_val or 0)
         spent_ratio = (spent / budget) if budget > 0 else 0
         impressions = spent * 10
         clicks = spent * 0.5
         ctr = (clicks / impressions * 100) if impressions > 0 else 0
         cpc = (spent / clicks) if clicks > 0 else 0
 
+        # spent_ratio in decimal [0, 1.0]
         if spent_ratio < 0.8:
             label, label_css = 'Tốt', 'bg-emerald-50 text-emerald-700'
         elif spent_ratio < 0.9:

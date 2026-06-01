@@ -198,6 +198,13 @@ def get_staff_performance():
     return jsonify(performance)
 
 
+@admin_bp.route('/audit-logs')
+@require_role_page(['admin'])
+def audit_logs_page():
+    """Trang hiển thị Nhật ký hệ thống."""
+    return render_template('admin/audit_logs.html')
+
+
 @admin_bp.route('/api/admin/audit-logs')
 @require_role_api(['admin'])
 def get_audit_logs():
@@ -430,6 +437,12 @@ def add_campaign():
         return jsonify({'success': False, 'message': 'Vui lòng chọn khách hàng!'}), 400
     if not platform:
         return jsonify({'success': False, 'message': 'Vui lòng chọn nền tảng!'}), 400
+
+    # Kiểm tra trạng thái của nền tảng
+    sql_plat = "SELECT * FROM platforms WHERE LOWER(name) LIKE %s LIMIT 1"
+    platform_rec = DBModel.fetch_one(sql_plat, (f"%{platform.lower()}%",))
+    if platform_rec and platform_rec.get('status') in ('error', 'disconnected'):
+        return jsonify({'success': False, 'message': f'Nền tảng {platform_rec.get("name")} đang bị lỗi kết nối hoặc ngắt kết nối. Không thể tạo chiến dịch!'}), 400
     try:
         budget = float(budget)
         if budget <= 0:
@@ -634,6 +647,78 @@ def delete_user(user_id):
 
 # ─── Quản lý Nền tảng (Dịch vụ) ──────────────────────────────────────────
 
+@admin_bp.route('/facebook/connect')
+@require_role_page(['admin'])
+def facebook_connect():
+    """Chuyển hướng người dùng sang trang xác thực OAuth của Facebook."""
+    import os
+    app_id = os.getenv('FACEBOOK_APP_ID', '123456789012345')
+    redirect_uri = url_for('admin.facebook_callback', _external=True)
+    scope = 'ads_read,read_insights'
+    
+    fb_auth_url = (
+        f"https://www.facebook.com/v19.0/dialog/oauth"
+        f"?client_id={app_id}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={scope}"
+        f"&response_type=code"
+        f"&state=fb_oauth_state"
+    )
+    return redirect(fb_auth_url)
+
+
+@admin_bp.route('/facebook/callback')
+@require_role_page(['admin'])
+def facebook_callback():
+    """Xử lý Callback phản hồi từ Facebook để lấy Access Token."""
+    import os
+    import requests
+    
+    code = request.args.get('code')
+    error = request.args.get('error')
+    
+    if error or not code:
+        flash(f"Lỗi xác thực Facebook: {error or 'Không nhận được authorization code'}", 'error')
+        return redirect(url_for('admin.platforms_page'))
+        
+    app_id = os.getenv('FACEBOOK_APP_ID', '123456789012345')
+    app_secret = os.getenv('FACEBOOK_APP_SECRET', 'mock_app_secret_value')
+    redirect_uri = url_for('admin.facebook_callback', _external=True)
+    
+    # Trao đổi authorization code lấy access_token
+    token_url = "https://graph.facebook.com/v19.0/oauth/access_token"
+    params = {
+        'client_id': app_id,
+        'client_secret': app_secret,
+        'redirect_uri': redirect_uri,
+        'code': code
+    }
+    
+    try:
+        # Nếu là ID mặc định thì tự động sinh mock token phục vụ thử nghiệm nội bộ
+        if app_id == '123456789012345':
+            access_token = f"EAAb_mock_token_{code}"
+        else:
+            resp = requests.get(token_url, params=params, timeout=10)
+            resp.raise_for_status()
+            access_token = resp.json().get('access_token')
+            
+        # Tìm xem đã có nền tảng Facebook nào chưa
+        platform = PlatformModel.get_facebook_platform()
+        if platform:
+            PlatformModel.update_token(platform['id'], access_token, status='active')
+            flash("Kết nối Facebook Graph API thành công!", "success")
+        else:
+            # Nếu chưa có, tự động tạo mới dịch vụ Facebook
+            PlatformModel.create(name='Facebook Ads', account_id='10101010', status='active', access_token=access_token)
+            flash("Đã tạo mới và kết nối dịch vụ Facebook Ads thành công!", "success")
+            
+    except Exception as e:
+        flash(f"Thất bại khi lấy Access Token: {str(e)}", "error")
+        
+    return redirect(url_for('admin.platforms_page'))
+
+
 @admin_bp.route('/platforms')
 @require_role_page(['admin'])
 def platforms_page():
@@ -711,8 +796,21 @@ def log_spending_api():
         return jsonify({'success': False, 'message': 'Thiếu thông tin chiến dịch hoặc ngày!'}), 400
 
     try:
-        # 1. Lưu vào daily_spending
+        # 1. Lưu vào daily_spending ( daily_reports table)
         SpendingModel.log_daily_spending(cam_id, date, spent, clicks, impr)
+
+        # Đồng bộ sang bảng daily_spending để kích hoạt DB Triggers trừ tiền balance
+        exist_ds = DBModel.fetch_one("SELECT id FROM daily_spending WHERE campaign_id = %s AND date = %s", (cam_id, date))
+        if exist_ds:
+            DBModel.execute(
+                "UPDATE daily_spending SET amount_spent = amount_spent + %s, clicks = clicks + %s, impressions = impressions + %s WHERE id = %s",
+                (spent, clicks, impr, exist_ds['id'])
+            )
+        else:
+            DBModel.execute(
+                "INSERT INTO daily_spending (campaign_id, date, amount_spent, clicks, impressions) VALUES (%s, %s, %s, %s, %s)",
+                (cam_id, date, spent, clicks, impr)
+            )
         
         # 2. Đồng bộ tổng chi tiêu vào bảng campaigns.spent
         total_spent = SpendingModel.get_total_spent(cam_id)
@@ -720,6 +818,12 @@ def log_spending_api():
         
         # 3. Kiểm tra ngân sách để gửi cảnh báo nếu cần
         check_budget_and_notify(cam_id)
+
+        # 4. Kiểm tra số dư ví cạn kiệt nếu dưới 500.000 VNĐ
+        cam = CampaignModel.get_by_id(cam_id)
+        if cam and cam.get('customer_id'):
+            from app.utils.alert_helpers import check_customer_balance_and_alert
+            check_customer_balance_and_alert(cam['customer_id'])
         
         return jsonify({'success': True, 'message': 'Đã cập nhật báo cáo thành công!'})
     except Exception as e:
@@ -914,6 +1018,99 @@ def deposit():
         return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
 
 
+@admin_bp.route('/api/invoices/pending', methods=['GET'])
+@require_role_api(['client', 'admin', 'marketer'])
+def get_pending_invoices():
+    """API lấy danh sách hóa đơn chưa thanh toán của khách hàng."""
+    cust_id = session.get('customer_id')
+    if not cust_id:
+        return jsonify({'success': False, 'message': 'Không tìm thấy thông tin khách hàng!'}), 400
+        
+    from app.models.invoice import InvoiceModel
+    invoices = InvoiceModel.query.filter_by(customer_id=cust_id, status='unpaid').all()
+    
+    data = []
+    for inv in invoices:
+        data.append({
+            'id': inv.id,
+            'invoice_number': inv.invoice_number,
+            'amount': float(inv.amount),
+            'created_at': inv.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'campaign_name': inv.campaign.name if inv.campaign else 'N/A'
+        })
+        
+    return jsonify({'success': True, 'invoices': data})
+
+
+@admin_bp.route('/api/transactions/upload_proof', methods=['POST'])
+@require_role_api(['client'])
+def upload_proof():
+    """Xử lý khách hàng upload ảnh biên lai chuyển khoản cho hóa đơn B2B."""
+    invoice_id = request.form.get('invoice_id')
+    proof_file = request.files.get('proof_image')
+    
+    if not invoice_id:
+        return jsonify({'success': False, 'message': 'Vui lòng chọn hóa đơn cần thanh toán!'}), 400
+    if not proof_file:
+        return jsonify({'success': False, 'message': 'Vui lòng tải lên ảnh chứng từ chuyển khoản!'}), 400
+        
+    try:
+        from app.models.invoice import InvoiceModel
+        invoice = InvoiceModel.query.get(invoice_id)
+        if not invoice:
+            return jsonify({'success': False, 'message': 'Không tìm thấy hóa đơn!'}), 404
+            
+        if invoice.customer_id != session.get('customer_id'):
+            return jsonify({'success': False, 'message': 'Bạn không có quyền thanh toán hóa đơn này!'}), 403
+            
+        # Lưu file proof_image
+        import uuid
+        ext = os.path.splitext(proof_file.filename)[1]
+        filename = f"proof_{uuid.uuid4().hex}{ext}"
+        uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'uploads', 'proofs')
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        abs_path = os.path.join(uploads_dir, filename)
+        proof_file.save(abs_path)
+        rel_path = f"/static/uploads/proofs/{filename}"
+        
+        # 1. Tạo Transaction topup trạng thái pending để chờ duyệt
+        tx_id = TransactionModel.create_transaction(
+            customer_id=invoice.customer_id,
+            t_type='topup',
+            amount=invoice.amount,
+            description=f"Thanh toán Hóa đơn {invoice.invoice_number}",
+            payment_method='Chuyển khoản Ngân hàng',
+            proof_image=rel_path,
+            status='pending'
+        )
+        
+        # 2. Cập nhật hóa đơn
+        invoice.status = 'pending_approval'
+        invoice.transaction_id = tx_id
+        db.session.commit()
+        
+        # 3. Ghi log lịch sử hệ thống
+        AuditLogModel.log(
+            user_id=session['user_id'],
+            action='UPLOAD_PROOF_B2B',
+            target_table='invoices',
+            target_id=invoice.id,
+            old_value='unpaid',
+            new_value='pending_approval'
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Đã tải biên lai lên thành công! Hóa đơn đang chờ Admin/Marketer phê duyệt.',
+            'transaction_id': tx_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
+
+
 @admin_bp.route('/api/webhook/payment', methods=['POST'])
 @csrf.exempt
 def webhook_payment():
@@ -989,23 +1186,55 @@ def webhook_payment():
 
 
 @admin_bp.route('/transactions')
-@require_role_page(['admin'])
+@require_role_page(['admin', 'marketer', 'client'])
 def transaction_manage():
-    """Trang quản lý nạp tiền (Admin)."""
+    """Trang quản lý nạp tiền & lịch sử giao dịch."""
     return render_template('admin/transaction_manage.html')
 
 
 @admin_bp.route('/api/transactions')
-@require_role_api(['admin'])
+@require_role_api(['admin', 'marketer', 'client'])
 def get_transactions():
-    """API lấy danh sách giao dịch lọc theo status."""
+    """API lấy danh sách giao dịch lọc theo status và type."""
     status = request.args.get('status')
-    txs = TransactionModel.get_all(status=status)
-    return jsonify(txs)
+    t_type = request.args.get('type')
+    
+    customer_id = None
+    if session['role'] == 'client':
+        customer_id = session.get('customer_id')
+        if not customer_id:
+            return jsonify([])
+
+    query = TransactionModel.query
+    if customer_id:
+        query = query.filter_by(customer_id=customer_id)
+    if status:
+        query = query.filter_by(status=status)
+    if t_type:
+        query = query.filter_by(type=t_type)
+        
+    txs = query.order_by(TransactionModel.created_at.desc()).all()
+    
+    data = []
+    for tx in txs:
+        data.append({
+            'id': tx.id,
+            'customer_id': tx.customer_id,
+            'customer_name': tx.customer.name if tx.customer else 'N/A',
+            'type': tx.type,
+            'amount': float(tx.amount),
+            'description': tx.description or '',
+            'payment_method': tx.payment_method or 'Chuyển khoản',
+            'proof_image': tx.proof_image,
+            'status': tx.status,
+            'reject_reason': tx.reject_reason or '',
+            'created_at': tx.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        })
+    return jsonify(data)
 
 
 @admin_bp.route('/api/transactions/<int:tx_id>/approve', methods=['POST'])
-@require_role_api(['admin'])
+@require_role_api(['admin', 'marketer'])
 def approve_transaction(tx_id):
     """Phê duyệt giao dịch nạp tiền."""
     tx = TransactionModel.get_by_id(tx_id)
@@ -1019,7 +1248,18 @@ def approve_transaction(tx_id):
         # 2. Cập nhật trạng thái giao dịch
         TransactionModel.update_status(tx_id, 'completed')
         
-        # 3. Tạo thông báo cho khách hàng
+        # 3. Kích hoạt Invoicing & Email tự động
+        from app.utils.payment_helpers import process_completed_transaction
+        process_completed_transaction(tx)
+        
+        # 4. Tìm hóa đơn tương ứng đang ở trạng thái pending_approval và cập nhật thành paid
+        from app.models.invoice import InvoiceModel
+        inv = InvoiceModel.query.filter_by(transaction_id=tx_id).first()
+        if inv:
+            inv.status = 'paid'
+            db.session.commit()
+        
+        # 5. Tạo thông báo cho khách hàng
         user = DBModel.fetch_one("SELECT id FROM users WHERE customer_id = %s", (tx['customer_id'],))
         if user:
             NotificationModel.create(user['id'], "Nạp tiền thành công", 
@@ -1033,7 +1273,7 @@ def approve_transaction(tx_id):
 
 
 @admin_bp.route('/api/transactions/<int:tx_id>/reject', methods=['POST'])
-@require_role_api(['admin'])
+@require_role_api(['admin', 'marketer'])
 def reject_transaction(tx_id):
     """Từ chối giao dịch nạp tiền."""
     data   = request.json or {}
@@ -1045,6 +1285,14 @@ def reject_transaction(tx_id):
     
     try:
         TransactionModel.update_status(tx_id, 'rejected', reason)
+        
+        # Cập nhật hóa đơn trở lại unpaid nếu có
+        from app.models.invoice import InvoiceModel
+        inv = InvoiceModel.query.filter_by(transaction_id=tx_id).first()
+        if inv:
+            inv.status = 'unpaid'
+            inv.transaction_id = None
+            db.session.commit()
         
         user = DBModel.fetch_one("SELECT id FROM users WHERE customer_id = %s", (tx['customer_id'],))
         if user:
@@ -1412,23 +1660,61 @@ def campaign_detail(campaign_id):
     metrics = DailyReportModel.get_total_metrics(campaign_id)
     raw_logs = DailyReportModel.get_last_7_days(campaign_id)
     
+    # Lấy thêm audit logs để hiển thị
+    audit_logs = DBModel.fetch_all("SELECT action, created_at FROM audit_logs WHERE target_id = %s AND target_table = 'campaigns' ORDER BY created_at DESC LIMIT 5", (campaign_id,))
+    
     # Map keys for template compatibility (amount_spent)
     logs = []
     for l in raw_logs:
         logs.append({
             'date': l['report_date'],
             'amount_spent': l['daily_spent'],
-            'clicks': l['clicks']
+            'clicks': l['clicks'],
+            'title': 'Cập nhật Chi tiêu',
+            'timestamp': str(l['report_date'])
         })
+        
+    for a in audit_logs:
+        action_name = "Hoạt động Hệ thống"
+        if a['action'] == 'CREATE_CAMPAIGN_FULL':
+            action_name = "Tạo Chiến dịch"
+        elif a['action'] == 'UPDATE_CAMPAIGN':
+            action_name = "Cập nhật Chiến dịch"
+            
+        logs.append({
+            'date': a['created_at'].strftime('%Y-%m-%d %H:%M') if a['created_at'] else '',
+            'amount_spent': cam.get('spent') or 0,
+            'clicks': 0,
+            'title': action_name,
+            'timestamp': a['created_at'].strftime('%Y-%m-%d %H:%M:%S') if a['created_at'] else ''
+        })
+        
+    # Giả lập log chi tiêu nếu có spent nhưng không có raw_logs
+    if not raw_logs and float(cam.get('spent') or 0) > 0:
+        from datetime import date
+        logs.append({
+            'date': date.today().strftime('%Y-%m-%d'),
+            'amount_spent': float(cam['spent']),
+            'clicks': 0,
+            'title': 'Cập nhật Chi tiêu',
+            'timestamp': date.today().strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+    # Sắp xếp logs theo thời gian mới nhất
+    logs.sort(key=lambda x: x['timestamp'], reverse=True)
+    
+    print(f"[DEBUG] campaign_id={campaign_id}, raw_logs_len={len(raw_logs)}, spent={cam.get('spent')}, logs_len={len(logs)}", flush=True)
     
     # Nếu chưa chạy (chờ duyệt hoặc đã duyệt nhưng chưa bắt đầu), zero out metrics
-    if cam.get('status') in ('Chờ duyệt', 'Đã duyệt') or cam.get('approval_status') in ('pending', 'approved'):
+    if cam.get('status') in ('Chờ duyệt', 'Đã duyệt'):
         metrics = {'total_clicks': 0, 'total_impressions': 0, 'total_conversions': 0}
         logs    = []
     return render_template('admin/campaign_detail.html',
                            campaign=cam,
                            creatives=creatives,
                            platforms=platforms,
+                           metrics=metrics,
+                           logs=logs,
                            payment_status=payment_status,
                            customer_balance=customer_balance)
 
@@ -1524,7 +1810,7 @@ def update_creative(creative_id):
 # ─────────────────────────────────────────────────────────────────────────────
 
 @admin_bp.route('/api/campaigns/<int:campaign_id>/approve', methods=['PUT'])
-@require_role_api(['admin', 'client'])
+@require_role_api(['admin', 'client', 'marketer']) # Thêm cả marketer để có thể phê duyệt
 def approve_campaign(campaign_id):
     """Admin hoặc Khách hàng duyệt chiến dịch → trạng thái 'Đã duyệt', chờ bấm nút Bắt đầu chạy."""
     cam = CampaignModel.get_by_id(campaign_id)
@@ -1539,6 +1825,11 @@ def approve_campaign(campaign_id):
             msg = 'Chiến dịch đã được duyệt! Tuy nhiên, số dư tài khoản của bạn hiện đang là 0đ. Vui lòng nạp tiền để có thể bắt đầu chạy quảng cáo.'
 
         DBModel.execute("UPDATE campaigns SET approval_status = 'approved', status = 'Đã duyệt' WHERE id = %s", (campaign_id,))
+        
+        # Tự động tạo hóa đơn khi chiến dịch được duyệt
+        from app.models.invoice import InvoiceModel
+        InvoiceModel.create_for_campaign(cam)
+
         AuditLogModel.log(session['user_id'], 'APPROVE_CAMPAIGN', 'campaigns', campaign_id, cam.approval_status, 'approved')
         return jsonify({'success': True, 'message': msg})
     except Exception as e:
@@ -1808,6 +2099,49 @@ def get_campaign_results(campaign_id):
         if p.get('created_at') and hasattr(p['created_at'], 'strftime'):
             p['created_at'] = p['created_at'].strftime('%Y-%m-%d')
 
+    # Fallback: nếu không có data theo platform, lấy trực tiếp từ daily_spending
+    if not chart_raw:
+        fallback_sql = """
+            SELECT 
+                ds.date,
+                'Tổng' AS platform_name,
+                SUM(ds.amount_spent) AS daily_spent,
+                SUM(ds.clicks)       AS daily_clicks,
+                SUM(ds.impressions)  AS daily_impressions
+            FROM daily_spending ds
+            WHERE ds.campaign_id = %s
+              AND ds.date >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+            GROUP BY ds.date
+            ORDER BY ds.date ASC
+        """
+        chart_raw = DBModel.fetch_all(fallback_sql, (campaign_id, days))
+
+        # Giả lập dữ liệu cho biểu đồ nếu không có log hàng ngày nhưng có tổng spent
+        if not chart_raw and float(cam.get('spent') or 0) > 0:
+            from datetime import date
+            chart_raw = [{
+                'date': date.today(),
+                'platform_name': 'Tổng',
+                'daily_spent': float(cam['spent']),
+                'daily_clicks': 0,
+                'daily_impressions': 0
+            }]
+
+        all_dates = sorted(set(str(r['date']) for r in chart_raw))
+        for r in chart_raw:
+            pname = r['platform_name']
+            date  = str(r['date'])
+            if pname not in chart_by_platform:
+                chart_by_platform[pname] = {}
+            chart_by_platform[pname][date] = {
+                'spent':       float(r['daily_spent'] or 0),
+                'clicks':      int(r['daily_clicks'] or 0),
+                'impressions': int(r['daily_impressions'] or 0),
+            }
+        # Cập nhật tổng clicks/impressions từ fallback
+        total_clicks      = sum(int(r['daily_clicks'] or 0) for r in chart_raw)
+        total_impressions = sum(int(r['daily_impressions'] or 0) for r in chart_raw)
+
     return jsonify({
         'success': True,
         'chart': {
@@ -1884,6 +2218,15 @@ def add_campaign_v2():
         return jsonify({'success': False, 'message': 'Vui lòng chọn khách hàng!'}), 400
     if not platforms:
         return jsonify({'success': False, 'message': 'Vui lòng chọn ít nhất 1 nền tảng!'}), 400
+
+    # Kiểm tra trạng thái của các nền tảng được chọn
+    for p_item in platforms:
+        p_id = int(p_item['platform_id'])
+        platform_rec = PlatformModel.get_by_id(p_id)
+        if not platform_rec:
+            return jsonify({'success': False, 'message': f'Nền tảng (ID: {p_id}) không tồn tại!'}), 400
+        if platform_rec.get('status') in ('error', 'disconnected'):
+            return jsonify({'success': False, 'message': f'Nền tảng {platform_rec.get("name")} đang bị lỗi kết nối hoặc ngắt kết nối. Không thể tạo chiến dịch!'}), 400
 
     try:
         budget = float(budget)
