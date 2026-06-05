@@ -111,12 +111,12 @@
         </div>
         <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lượt Click</p>
-            <h4 class="text-xl font-black text-indigo-600">{{ metrics.total_clicks | format_currency if metrics.total_clicks else 0 }}</h4>
+            <h4 class="text-xl font-black text-indigo-600">{{ (metrics.total_clicks if metrics else 0) | format_currency }}</h4>
         </div>
         <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Kết quả (Conversions)</p>
             <h4 class="text-xl font-black text-emerald-600">
-                {{ metrics.total_conversions | format_currency if metrics.total_conversions else 0 }}
+                {{ (metrics.total_conversions if metrics else 0) | format_currency }}
             </h4>
         </div>
         <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">

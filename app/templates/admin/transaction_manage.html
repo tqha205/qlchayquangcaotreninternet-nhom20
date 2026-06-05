@@ -111,9 +111,27 @@
             </div>
         </div>
 
-        <button onclick="loadTransactions()" class="p-3 bg-slate-50 hover:bg-slate-100 border-2 border-slate-100 text-slate-600 rounded-xl transition-all self-end flex items-center gap-1.5 font-bold text-xs">
-            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Làm mới
-        </button>
+            <!-- Filter Date From -->
+            <div class="space-y-1 w-full sm:w-40">
+                <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 block ml-1">Từ ngày</span>
+                <input type="date" id="filter-date-from" onchange="loadTransactions()" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-xs text-slate-600">
+            </div>
+
+            <!-- Filter Date To -->
+            <div class="space-y-1 w-full sm:w-40">
+                <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 block ml-1">Đến ngày</span>
+                <input type="date" id="filter-date-to" onchange="loadTransactions()" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-xs text-slate-600">
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 self-end w-full md:w-auto mt-4 md:mt-0">
+            <button onclick="exportToExcel()" class="p-3 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-100 text-emerald-600 rounded-xl transition-all flex-1 md:flex-none flex items-center justify-center gap-1.5 font-bold text-xs">
+                <i data-lucide="download" class="w-4 h-4"></i> Xuất Excel
+            </button>
+            <button onclick="loadTransactions()" class="p-3 bg-slate-50 hover:bg-slate-100 border-2 border-slate-100 text-slate-600 rounded-xl transition-all flex-1 md:flex-none flex items-center justify-center gap-1.5 font-bold text-xs">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Làm mới
+            </button>
+        </div>
     </div>
 
     <!-- Data Table Card -->
@@ -206,10 +224,14 @@ $(function() {
 async function loadTransactions() {
     const status = $('#filter-status').val();
     const type = $('#filter-type').val();
+    const startDate = $('#filter-date-from').val();
+    const endDate = $('#filter-date-to').val();
     
     let url = `/admin/api/transactions?_t=${Date.now()}`;
     if (status) url += `&status=${status}`;
     if (type) url += `&type=${type}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
     
     try {
         const res = await fetch(url);
@@ -285,6 +307,10 @@ function renderTransactions(list) {
         } else {
             amountText = `<span class="font-extrabold text-sm text-rose-500">-${new Intl.NumberFormat('vi-VN').format(tx.amount)}đ</span>`;
         }
+        
+        let balanceAfterText = tx.balance_after !== null 
+            ? `<div class="text-[9px] text-slate-400 font-bold mt-1">Số dư: <span class="text-slate-600">${new Intl.NumberFormat('vi-VN').format(tx.balance_after)}đ</span></div>`
+            : '';
 
         // Status Badge styling
         let statusBadge = '';
@@ -329,7 +355,10 @@ function renderTransactions(list) {
                 <td class="px-8 py-5"><span class="font-mono text-xs text-slate-500 font-bold">#${tx.id}</span></td>
                 ${clientColHtml}
                 <td class="px-8 py-5">${typeBadge}</td>
-                <td class="px-8 py-5">${amountText}</td>
+                <td class="px-8 py-5">
+                    ${amountText}
+                    ${balanceAfterText}
+                </td>
                 <td class="px-8 py-5">${proofHtml}</td>
                 <td class="px-8 py-5 text-xs font-semibold text-slate-400">${tx.created_at}</td>
                 <td class="px-8 py-5">${statusBadge}</td>
@@ -450,5 +479,20 @@ $('#confirm-reject-btn').on('click', async () => {
         btn.prop('disabled', false).html(origHtml);
     }
 });
+
+function exportToExcel() {
+    const status = $('#filter-status').val();
+    const type = $('#filter-type').val();
+    const startDate = $('#filter-date-from').val();
+    const endDate = $('#filter-date-to').val();
+    
+    let url = `/admin/api/transactions/export?_t=${Date.now()}`;
+    if (status) url += `&status=${status}`;
+    if (type) url += `&type=${type}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+    
+    window.location.href = url;
+}
 </script>
 {% endblock %}

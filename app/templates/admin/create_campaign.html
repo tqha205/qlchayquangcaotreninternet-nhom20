@@ -152,15 +152,10 @@
 
         <!-- STEP 2: MULTI-PLATFORM & BUDGET -->
         <div class="form-section">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="section-title mb-0">
-                    <span class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-sm font-black shadow-lg shadow-indigo-200">2</span>
-                    Nền tảng & Phân bổ
-                </h3>
-                <button type="button" onclick="addPlatformRow()" class="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2">
-                    <i data-lucide="plus" class="w-4 h-4"></i> Thêm nền tảng
-                </button>
-            </div>
+            <h3 class="section-title mb-6">
+                <span class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-sm font-black shadow-lg shadow-indigo-200">2</span>
+                Nền tảng & Phân bổ
+            </h3>
 
             <div class="space-y-6">
                 <div>
@@ -171,10 +166,19 @@
                     </div>
                 </div>
 
+                <!-- NEW: PLATFORM SELECTION WITH CARDS -->
+                <div>
+                    <label class="input-label">Chọn nền tảng quảng cáo (Có thể chọn nhiều)</label>
+                    <div id="platform-cards" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <!-- JS injects platform cards here -->
+                    </div>
+                </div>
+
+                <!-- NEW: DYNAMIC BUDGET ALLOCATION -->
                 <div class="space-y-3">
-                    <label class="input-label">Phân bổ ngân sách chi tiết</label>
+                    <label class="input-label hidden" id="allocation-label">Phân bổ ngân sách chi tiết</label>
                     <div id="platforms-container" class="space-y-3">
-                        <!-- Platform rows injected here -->
+                        <!-- Dynamic rows injected here based on selected platforms -->
                     </div>
                     <div id="budget-warning" class="hidden p-3 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
                         Tổng phân bổ vượt quá ngân sách chiến dịch!
@@ -292,6 +296,7 @@
 {% block scripts %}
 <script>
     let availablePlatforms = [];
+    let selectedPlatforms = new Set();
     
     document.addEventListener('DOMContentLoaded', async function() {
         // Init dates
@@ -306,7 +311,11 @@
             const resP = await fetch('/admin/api/platforms');
             if (!resP.ok) throw new Error("Lỗi tải danh sách nền tảng (" + resP.status + ")");
             availablePlatforms = await resP.json();
-            addPlatformRow();
+            
+            renderPlatformCards();
+            if(availablePlatforms.length > 0) {
+                togglePlatform(availablePlatforms[0].id);
+            }
 
             // Load customers if needed
             const custSelect = document.getElementById('customer_id');
@@ -324,33 +333,73 @@
         lucide.createIcons();
     });
 
-    function addPlatformRow() {
+    function renderPlatformCards() {
+        const container = document.getElementById('platform-cards');
+        let html = '';
+        availablePlatforms.forEach(p => {
+            html += `
+                <div onclick="togglePlatform(${p.id})" id="pc-${p.id}" class="cursor-pointer border-2 border-slate-100 bg-white rounded-xl p-3 flex flex-col items-center justify-center transition-all hover:border-indigo-300">
+                    <span class="text-xs font-bold text-slate-600" id="pc-text-${p.id}">${p.name}</span>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function togglePlatform(id) {
+        const card = document.getElementById(`pc-${id}`);
+        const text = document.getElementById(`pc-text-${id}`);
+        
+        if (selectedPlatforms.has(id)) {
+            if (selectedPlatforms.size === 1) {
+                showToast("Phải chọn ít nhất 1 nền tảng", "error");
+                return;
+            }
+            selectedPlatforms.delete(id);
+            card.classList.remove('border-indigo-600', 'bg-indigo-50');
+            card.classList.add('border-slate-100');
+            text.classList.remove('text-indigo-600');
+            text.classList.add('text-slate-600');
+            const row = document.getElementById(`pl-row-${id}`);
+            if (row) row.remove();
+        } else {
+            selectedPlatforms.add(id);
+            card.classList.remove('border-slate-100');
+            card.classList.add('border-indigo-600', 'bg-indigo-50');
+            text.classList.remove('text-slate-600');
+            text.classList.add('text-indigo-600');
+            addBudgetRow(id);
+        }
+        
+        const allocLabel = document.getElementById('allocation-label');
+        if (allocLabel) allocLabel.classList.toggle('hidden', selectedPlatforms.size === 0);
+        updateStats();
+    }
+
+    function addBudgetRow(id) {
         const container = document.getElementById('platforms-container');
-        const rowId = Date.now();
+        const p = availablePlatforms.find(x => x.id === id);
+        if (!p) return;
+        
         const div = document.createElement('div');
-        div.className = 'platform-row flex items-center gap-3 animate-in slide-in-from-left-2 duration-300';
-        div.id = `pl-row-${rowId}`;
+        div.className = 'platform-row flex items-center justify-between gap-3 animate-in slide-in-from-top-2 duration-300';
+        div.id = `pl-row-${id}`;
         
         div.innerHTML = `
-            <select class="flex-1 bg-white border-2 border-slate-100 rounded-xl px-3 py-2 text-xs font-bold outline-none pl-select" onchange="updateStats()">
-                ${availablePlatforms.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
-            </select>
-            <div class="relative w-40">
-                <input type="number" class="w-full bg-white border-2 border-slate-100 rounded-xl px-3 py-2 text-xs font-black text-indigo-600 pl-alloc" placeholder="Số tiền..." oninput="updateStats()">
-                <span class="absolute right-3 top-2.5 text-[10px] font-black text-slate-300">đ</span>
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                    <i data-lucide="layout-grid" class="w-4 h-4 text-slate-400"></i>
+                </div>
+                <span class="text-xs font-bold text-slate-700 w-20 truncate" title="${p.name}">${p.name}</span>
+                <input type="hidden" class="pl-select" value="${p.id}" data-name="${p.name}">
             </div>
-            <button onclick="removePlatformRow(${rowId})" class="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
+            <div class="relative flex-1 max-w-[200px]">
+                <input type="number" class="w-full bg-white border-2 border-slate-100 rounded-xl px-3 py-2 text-sm font-black text-indigo-600 pl-alloc" placeholder="Số tiền..." oninput="updateStats()">
+                <span class="absolute right-3 top-2.5 text-[10px] font-black text-slate-300">VNĐ</span>
+            </div>
         `;
         container.appendChild(div);
         lucide.createIcons();
-    }
-
-    function removePlatformRow(id) {
-        if (document.querySelectorAll('.platform-row').length <= 1) return;
-        document.getElementById(`pl-row-${id}`).remove();
-        updateStats();
     }
 
     function updateStats() {
@@ -364,7 +413,7 @@
         let html = '';
 
         selects.forEach((sel, i) => {
-            const pName = sel.options[sel.selectedIndex].text;
+            const pName = sel.getAttribute('data-name') || sel.value;
             const val   = parseFloat(allocs[i].value) || 0;
             totalAlloc += val;
             html += `
@@ -377,8 +426,10 @@
 
         summary.innerHTML = html;
         const warning = document.getElementById('budget-warning');
-        if (totalAlloc > totalBudget) warning.classList.remove('hidden');
-        else warning.classList.add('hidden');
+        if (warning) {
+            if (totalAlloc > totalBudget) warning.classList.remove('hidden');
+            else warning.classList.add('hidden');
+        }
     }
 
     function updatePreview() {

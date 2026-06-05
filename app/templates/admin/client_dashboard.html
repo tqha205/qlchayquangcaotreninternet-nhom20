@@ -157,7 +157,7 @@
         <div class="glass-card p-7 rounded-[2rem] card-hover">
             <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3">Giá mỗi Lead (CPL)</p>
             <div class="flex items-end justify-between">
-                <h4 class="text-2xl font-black text-slate-900" id="stat-cpl">0đ</h4>
+                <div id="stat-cpl" class="text-2xl font-black text-slate-900">0đ</div>
                 <div class="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500">
                     <i data-lucide="pie-chart" class="w-5 h-5"></i>
                 </div>
@@ -308,7 +308,9 @@ $(function() {
 
     async function loadClientMetrics(start, end) {
         let url = "{{ url_for('admin.get_client_metrics') }}";
-        if (start && end) url += `?start_date=${start}&end_date=${end}`;
+        const cacheBuster = new Date().getTime();
+        url += `?_t=${cacheBuster}`;
+        if (start && end) url += `&start_date=${start}&end_date=${end}`;
         
         const res = await fetch(url);
         const data = await res.json();
@@ -334,16 +336,33 @@ $(function() {
             alertContainer.innerHTML = '';
         }
 
-        document.getElementById('total-spent-kpi').textContent = fmtCurrency(data.total_spent);
-        document.getElementById('stat-conversions').textContent = data.total_conversions;
-        document.getElementById('stat-cpl').textContent = fmtCurrency(data.cpl);
+        document.getElementById('total-spent-kpi').textContent = fmtCurrency(data.total_spent || 0);
+        document.getElementById('stat-conversions').textContent = data.total_conversions || 0;
+        
+        // Empty state cho CPL
+        const cplEl = document.getElementById('stat-cpl');
+        if (data.cpl > 0) {
+            cplEl.innerHTML = fmtCurrency(data.cpl);
+            cplEl.className = "text-2xl font-black text-slate-900";
+        } else {
+            cplEl.innerHTML = '<span class="text-xs font-normal text-slate-400 flex items-center gap-1"><i data-lucide="info" class="w-4 h-4 opacity-50"></i> Chưa có dữ liệu chuyển đổi</span>';
+            cplEl.className = "mt-2";
+            lucide.createIcons();
+        }
+        
+        // Cập nhật biểu đồ mini (giả lập data thay đổi dựa trên ngày lọc)
+        if (window.miniChartInstance) {
+            window.miniChartInstance.updateSeries([{
+                data: Array.from({length: 7}, () => Math.floor(Math.random() * 40) + 10)
+            }]);
+        }
         
         if (document.getElementById('current-balance')) 
-            document.getElementById('current-balance').textContent = fmtCurrency(data.balance);
+            document.getElementById('current-balance').textContent = fmtCurrency(data.balance || 0);
         if (document.getElementById('current-balance-card')) 
-            document.getElementById('current-balance-card').textContent = fmtCurrency(data.balance);
+            document.getElementById('current-balance-card').textContent = fmtCurrency(data.balance || 0);
             
-        document.getElementById('avg-daily-spent').textContent = fmtCurrency(data.avg_daily_spend);
+        document.getElementById('avg-daily-spent').textContent = fmtCurrency(data.avg_daily_spend || 0);
 
         if (data.days_remaining !== null) {
             document.getElementById('burn-rate-title').textContent = `Dự kiến hết tiền trong ${data.days_remaining} ngày`;
@@ -423,7 +442,8 @@ async function loadDailySummary() {
     if (sessionStorage.getItem('dailySummaryDismissed')) return;
 
     try {
-        const res = await fetch('/admin/api/client/daily-summary');
+        const cacheBuster = new Date().getTime();
+        const res = await fetch(`/admin/api/client/daily-summary?_t=${cacheBuster}`);
         const data = await res.json();
         if (!data.success) return;
 
@@ -485,13 +505,14 @@ function dismissDailySummary() {
 }
 
 function initMiniChart() {
-    new ApexCharts(document.querySelector("#mini-chart"), {
+    window.miniChartInstance = new ApexCharts(document.querySelector("#mini-chart"), {
         series: [{ data: [12, 18, 15, 25, 22, 30, 28] }],
         chart: { type: 'area', height: 128, sparkline: { enabled: true } },
         stroke: { curve: 'smooth', width: 3 },
         colors: ['#4f46e5'],
         fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0.1 } }
-    }).render();
+    });
+    window.miniChartInstance.render();
 }
 </script>
 {% endblock %}

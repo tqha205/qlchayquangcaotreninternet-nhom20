@@ -20,10 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements
 COPY requirements.txt .
 
-# Remove PyQt5 since it is a GUI library not needed in server/docker
-RUN grep -v "PyQt5" requirements.txt > requirements-prod.txt && \
-    pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements-prod.txt
+# Install requirements
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY . .

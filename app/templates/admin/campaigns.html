@@ -64,6 +64,9 @@
                 <button onclick="togglePlatform('TikTok', this)" class="platform-btn px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-500 hover:text-indigo-600">
                     <i data-lucide="music-2" class="w-3.5 h-3.5"></i> TT
                 </button>
+                <button onclick="togglePlatform('Zalo', this)" class="platform-btn px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-500 hover:text-indigo-600">
+                    <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Zalo
+                </button>
             </div>
         </div>
 
@@ -220,7 +223,7 @@ function renderCampaigns(list) {
                         <a href="/admin/campaigns/${c.id}" class="text-sm font-black text-slate-900 hover:text-indigo-600 transition-colors">${c.name}</a>
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase">
-                                <i data-lucide="${c.platform && c.platform.toLowerCase().includes('facebook') ? 'facebook' : c.platform && c.platform.toLowerCase().includes('tiktok') ? 'music-2' : 'search'}" class="w-3 h-3"></i>
+                                <i data-lucide="${c.platform && c.platform.toLowerCase().includes('facebook') ? 'facebook' : c.platform && c.platform.toLowerCase().includes('tiktok') ? 'music-2' : c.platform && c.platform.toLowerCase().includes('zalo') ? 'message-circle' : 'search'}" class="w-3 h-3"></i>
                                 ${c.platform || '—'}
                             </span>
                             ${c.target_link ? `

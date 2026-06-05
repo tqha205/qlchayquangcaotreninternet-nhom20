@@ -21,7 +21,7 @@ def create_app():
     # 1. Logging Configuration
     if not os.path.exists('logs'):
         os.mkdir('logs')
-    file_handler = RotatingFileHandler('logs/ads_manager.log', maxBytes=10240, backupCount=10)
+    file_handler = RotatingFileHandler('logs/ads_manager_v2.log', maxBytes=10240, backupCount=10)
     file_handler.setFormatter(logging.Formatter(
         '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
     ))
@@ -31,7 +31,9 @@ def create_app():
     app.logger.info('ADS Manager Startup')
 
     # Secret key cho Flask Session
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev_key_only_for_local_testing')
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    if not SECRET_KEY:
+        raise ValueError("SECRET_KEY must be set in environment")
     app.secret_key = SECRET_KEY
 
     # SQLAlchemy Config
@@ -76,6 +78,28 @@ def create_app():
     # Khởi tạo Scheduler (Jobs)
     from app.jobs import init_scheduler
     init_scheduler(app)
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        import traceback
+        import sys
+        
+        # Get the current exception
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        
+        # Format the traceback
+        tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        tb_str = "".join(tb_lines)
+        
+        # Use safe logger instead of manually opening file (Race condition fix)
+        app.logger.error(f"Captured 500 error: {e}\n{tb_str}")
+        
+        # Optionally send to Sentry if DSN is configured
+        sentry_sdk.capture_exception(e)
+        
+        # Return original error to Werkzeug to display
+        raise e
+
 
     # 4. Đăng ký Filters
     @app.template_filter('format_currency')

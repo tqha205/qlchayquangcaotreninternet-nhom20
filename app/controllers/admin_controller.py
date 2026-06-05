@@ -260,9 +260,14 @@ def get_client_metrics():
     if avg_daily_spend > 0:
         days_remaining = int(balance / avg_daily_spend)
 
+    total_spent = float(metrics['total_spent'] or 0) if metrics else 0
+    total_conv = int(metrics['total_conv'] or 0) if metrics else 0
+    cpl = float(metrics['cpl'] or 0) if metrics else 0
+
     return jsonify({
-        'total_conversions': int(metrics['total_conv'] or 0),
-        'cpl': float(metrics['cpl'] or 0),
+        'total_spent': total_spent,
+        'total_conversions': total_conv,
+        'cpl': cpl,
         'avg_daily_spend': avg_daily_spend,
         'balance': balance,
         'days_remaining': days_remaining
@@ -710,8 +715,8 @@ def facebook_callback():
             flash("Kết nối Facebook Graph API thành công!", "success")
         else:
             # Nếu chưa có, tự động tạo mới dịch vụ Facebook
-            PlatformModel.create(name='Facebook Ads', account_id='10101010', status='active', access_token=access_token)
-            flash("Đã tạo mới và kết nối dịch vụ Facebook Ads thành công!", "success")
+            PlatformModel.create(name='Facebook', account_id='10101010', status='active', access_token=access_token)
+            flash("Đã tạo mới và kết nối dịch vụ Facebook thành công!", "success")
             
     except Exception as e:
         flash(f"Thất bại khi lấy Access Token: {str(e)}", "error")
@@ -726,7 +731,7 @@ def platforms_page():
 
 
 @admin_bp.route('/api/platforms')
-@require_role_api(['admin', 'marketer'])
+@require_role_api(['admin', 'marketer', 'client'])
 def get_platforms():
     return jsonify(PlatformModel.get_all())
 
@@ -779,6 +784,18 @@ def delete_platform(pid):
 def log_spending_page():
     """Trang cập nhật báo cáo chi tiêu hàng ngày."""
     return render_template('admin/log_spending.html')
+
+
+@admin_bp.route('/api/spending/recent-logs')
+@require_role_api(['admin', 'marketer'])
+def get_recent_spending_logs():
+    """Lấy danh sách log chi tiêu gần đây để hiển thị lên bảng history."""
+    try:
+        marketer_id = session.get('user_id') if session.get('role') == 'marketer' else None
+        logs = SpendingModel.get_recent_logs(limit=10, marketer_id=marketer_id)
+        return jsonify(logs)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @admin_bp.route('/api/log-spending', methods=['POST'])
@@ -837,13 +854,25 @@ def get_customer_campaigns(customer_id):
     """Lấy danh sách chiến dịch của 1 khách hàng."""
     try:
         campaigns = CampaignModel.get_by_customer(customer_id)
-        # Thêm hiệu quả
+        result = []
         for c in campaigns:
-            eff = CampaignModel.get_efficiency_stats(c['id'])
+            c_dict = {
+                'id': c.id,
+                'name': c.name,
+                'target_link': c.target_link,
+                'start_date': str(c.start_date) if c.start_date else None,
+                'end_date': str(c.end_date) if c.end_date else None,
+                'platform': c.platform,
+                'budget': float(c.budget or 0),
+                'spent': float(c.spent or 0),
+                'status': c.status
+            }
+            eff = CampaignModel.get_efficiency_stats(c.id)
             if eff:
-                c['efficiency_label'] = eff['label']
-                c['efficiency_css']   = eff['label_css']
-        return jsonify(campaigns)
+                c_dict['efficiency_label'] = eff['label']
+                c_dict['efficiency_css']   = eff['label_css']
+            result.append(c_dict)
+        return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -1198,6 +1227,8 @@ def get_transactions():
     """API lấy danh sách giao dịch lọc theo status và type."""
     status = request.args.get('status')
     t_type = request.args.get('type')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
     
     customer_id = None
     if session['role'] == 'client':
@@ -1212,6 +1243,10 @@ def get_transactions():
         query = query.filter_by(status=status)
     if t_type:
         query = query.filter_by(type=t_type)
+    if start_date:
+        query = query.filter(TransactionModel.created_at >= start_date + ' 00:00:00')
+    if end_date:
+        query = query.filter(TransactionModel.created_at <= end_date + ' 23:59:59')
         
     txs = query.order_by(TransactionModel.created_at.desc()).all()
     
@@ -1223,6 +1258,8 @@ def get_transactions():
             'customer_name': tx.customer.name if tx.customer else 'N/A',
             'type': tx.type,
             'amount': float(tx.amount),
+            'balance_after': float(tx.balance_after) if tx.balance_after is not None else None,
+            'campaign_name': tx.campaign.name if tx.campaign else None,
             'description': tx.description or '',
             'payment_method': tx.payment_method or 'Chuyển khoản',
             'proof_image': tx.proof_image,
@@ -1232,6 +1269,64 @@ def get_transactions():
         })
     return jsonify(data)
 
+@admin_bp.route('/api/transactions/export')
+@require_role_api(['admin', 'marketer', 'client'])
+def export_transactions():
+    """Xuất danh sách giao dịch ra file CSV."""
+    import csv, io
+    from flask import Response
+    
+    status = request.args.get('status')
+    t_type = request.args.get('type')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    customer_id = None
+    if session['role'] == 'client':
+        customer_id = session.get('customer_id')
+        if not customer_id:
+            return "Unauthorized", 403
+
+    query = TransactionModel.query
+    if customer_id:
+        query = query.filter_by(customer_id=customer_id)
+    if status:
+        query = query.filter_by(status=status)
+    if t_type:
+        query = query.filter_by(type=t_type)
+    if start_date:
+        query = query.filter(TransactionModel.created_at >= start_date + ' 00:00:00')
+    if end_date:
+        query = query.filter(TransactionModel.created_at <= end_date + ' 23:59:59')
+        
+    txs = query.order_by(TransactionModel.created_at.desc()).all()
+    
+    si = io.StringIO()
+    # Write BOM for Excel UTF-8 compatibility
+    si.write('\ufeff')
+    cw = csv.writer(si)
+    cw.writerow(['Mã GD', 'Khách hàng', 'Loại GD', 'Số tiền', 'Số dư sau GD', 'Ngày tạo', 'Trạng thái', 'Nội dung'])
+    
+    for tx in txs:
+        t_label = 'Nạp tiền' if tx.type in ['topup', 'deposit'] else ('Trừ phí' if tx.type == 'deduction' else tx.type)
+        st_label = 'Thành công' if tx.status == 'completed' else ('Chờ duyệt' if tx.status == 'pending' else 'Bị từ chối')
+        cw.writerow([
+            tx.id,
+            tx.customer.name if tx.customer else 'N/A',
+            t_label,
+            float(tx.amount),
+            float(tx.balance_after) if tx.balance_after is not None else '',
+            tx.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            st_label,
+            tx.description or ''
+        ])
+        
+    output = si.getvalue()
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=lich_su_giao_dich.csv"}
+    )
 
 @admin_bp.route('/api/transactions/<int:tx_id>/approve', methods=['POST'])
 @require_role_api(['admin', 'marketer'])
@@ -1245,8 +1340,12 @@ def approve_transaction(tx_id):
         # 1. Cập nhật số dư khách hàng
         CustomerModel.deposit(tx['customer_id'], tx['amount'])
         
-        # 2. Cập nhật trạng thái giao dịch
-        TransactionModel.update_status(tx_id, 'completed')
+        # 2. Cập nhật trạng thái giao dịch và balance_after
+        tx.status = 'completed'
+        cust = CustomerModel.get_by_id(tx['customer_id'])
+        if cust:
+            tx.balance_after = cust.balance
+        db.session.commit()
         
         # 3. Kích hoạt Invoicing & Email tự động
         from app.utils.payment_helpers import process_completed_transaction
@@ -1702,8 +1801,6 @@ def campaign_detail(campaign_id):
         
     # Sắp xếp logs theo thời gian mới nhất
     logs.sort(key=lambda x: x['timestamp'], reverse=True)
-    
-    print(f"[DEBUG] campaign_id={campaign_id}, raw_logs_len={len(raw_logs)}, spent={cam.get('spent')}, logs_len={len(logs)}", flush=True)
     
     # Nếu chưa chạy (chờ duyệt hoặc đã duyệt nhưng chưa bắt đầu), zero out metrics
     if cam.get('status') in ('Chờ duyệt', 'Đã duyệt'):

@@ -37,16 +37,18 @@
         </div>
     </div>
 
-    <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col justify-between group hover:border-indigo-100 transition-all">
-        <div class="flex justify-between items-start">
-            <div class="bg-amber-50 p-3 rounded-2xl group-hover:bg-amber-100 transition-colors">
-                <i data-lucide="clock" class="w-6 h-6 text-amber-600"></i>
+    <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col justify-between group hover:border-indigo-100 transition-all relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 w-32 h-32 bg-amber-50 rounded-full blur-2xl"></div>
+        <div class="flex justify-between items-start relative z-10">
+            <div class="bg-amber-50 p-3 rounded-2xl group-hover:bg-amber-100 transition-colors animate-pulse border border-amber-200">
+                <i data-lucide="alert-triangle" class="w-6 h-6 text-amber-600"></i>
             </div>
-            <span class="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg uppercase tracking-wider">Cần xử lý</span>
+            <span class="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg uppercase tracking-wider shadow-sm shadow-amber-100">Chờ duyệt</span>
         </div>
-        <div>
+        <div class="relative z-10 mt-4">
             <p id="pending-count" class="text-4xl font-black text-slate-900 mb-1">0</p>
-            <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Yêu cầu chờ duyệt</p>
+            <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Giao dịch cần xử lý</p>
+            <a href="/admin/transactions" class="w-full text-center text-xs font-bold bg-amber-500 text-white px-4 py-2.5 rounded-xl block hover:bg-amber-600 transition shadow-lg shadow-amber-200">Xem ngay →</a>
         </div>
     </div>
 

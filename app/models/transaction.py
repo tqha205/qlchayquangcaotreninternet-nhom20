@@ -13,10 +13,13 @@ class TransactionModel(db.Model):
     proof_image = db.Column(db.String(255))
     status = db.Column(db.String(50), default='pending') # 'pending', 'completed', 'rejected'
     reject_reason = db.Column(db.String(500))
+    balance_after = db.Column(db.Numeric(18, 2), nullable=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('campaigns.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationship
     customer = db.relationship('CustomerModel', backref=db.backref('transactions', lazy=True))
+    campaign = db.relationship('CampaignModel', backref='transactions', lazy=True)
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -29,11 +32,12 @@ class TransactionModel(db.Model):
         return TransactionModel.query.filter_by(customer_id=customer_id).order_by(TransactionModel.created_at.desc()).all()
 
     @staticmethod
-    def create_transaction(customer_id, t_type, amount, description='', payment_method=None, proof_image=None, status='pending'):
+    def create_transaction(customer_id, t_type, amount, description='', payment_method=None, proof_image=None, status='pending', balance_after=None, campaign_id=None):
         new_transaction = TransactionModel(
             customer_id=customer_id, type=t_type, amount=amount,
             description=description, payment_method=payment_method,
-            proof_image=proof_image, status=status
+            proof_image=proof_image, status=status,
+            balance_after=balance_after, campaign_id=campaign_id
         )
         db.session.add(new_transaction)
         db.session.commit()
